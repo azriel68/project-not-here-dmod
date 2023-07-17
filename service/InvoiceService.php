@@ -21,7 +21,7 @@ class InvoiceService extends CoreService {
 
 		$invoice = new \Facture($this->db);
 		$invoice->ref_ext = $data['ref_ext'];
-
+		$invoice->entity = $data['entity'];
 		$invoice->type = \Facture::TYPE_STANDARD;
 		$invoice->brouillon = 0;
 		$invoice->status = $invoice->statut = \Facture::STATUS_DRAFT;
