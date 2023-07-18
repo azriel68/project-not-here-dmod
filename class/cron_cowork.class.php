@@ -7,7 +7,11 @@ dol_include_once('/cowork/class/MailFile.class.php');
 
 class CronCowork {
 
-	public function createSpotBills() {
+	public array $errors = [];
+	public string $error = '';
+
+	public function createSpotBills(): int
+	{
 		global $db, $user, $langs, $conf, $mysoc;
 
 		$invoiceService = \Dolibarr\Cowork\InvoiceService::make($db, $user);
@@ -40,6 +44,11 @@ class CronCowork {
 		curl_close($curl);
 		$user_api = json_decode($user_string);
 
+		if (empty($user_api)) {
+			$this->errors[] = 'login failed on '.$conf->global->COWORK_API_USER;
+			return -9;
+		}
+
 		$curl = curl_init();
 		curl_setopt_array($curl, array(
 			CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/baskets/payed',
@@ -60,6 +69,12 @@ class CronCowork {
 		curl_close($curl);
 
 		$data = json_decode($json);
+
+		if (empty($data)) {
+			$this->errors[] = 'No wallet found';
+			return 0;
+		}
+
 		foreach($data as $wallet) {
 			$basket = $wallet->basket;
 
@@ -101,13 +116,36 @@ class CronCowork {
 				throw new \Exception('Invoice PDF::'.$invoice->error);
 			}
 
-			$fileMailInvoice = new \Dolibarr\Cowork\MailFile(substr($conf->facture->multidir_output[$invoice->entity], 0,-7).'/'.$invoice->last_main_doc);
-			$mailService->sendMail('Facture '.$mysoc->name, 'ci-joint votre facture', $mysoc->email, $userData->email);
+			/* ?
+			$rootfordata = DOL_DATA_ROOT;
+			if (isModEnabled('multicompany') && !empty($this->entity) && $this->entity > 1) {
+				$rootfordata .= '/'.$this->entity;
+			}
+			 */
+			$mailService->sendMail('Facture '.$mysoc->name, 'ci-joint votre facture', $mysoc->email, $userData->email, [
+				new \Dolibarr\Cowork\MailFile(substr($conf->facture->multidir_output[$invoice->entity], 0,-8).'/'.$invoice->last_main_doc)
+			]);
 
+			$curl = curl_init();
+			curl_setopt_array($curl, array(
+				CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/basket/billed/'.$basket->id.'/'.$invoice->ref,
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_ENCODING => '',
+				CURLOPT_MAXREDIRS => 10,
+				CURLOPT_TIMEOUT => 0,
+				CURLOPT_FOLLOWLOCATION => true,
+				CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+				CURLOPT_CUSTOMREQUEST => 'POST',
+				CURLOPT_POSTFIELDS => '',
+				CURLOPT_HTTPHEADER => array(
+					'Authorization: Bearer '.$user_api->token
+				),
+			));
 
+			$json = curl_exec($curl);
 		}
 
-
+		return 1;
 	}
 
 }
