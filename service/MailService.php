@@ -27,7 +27,7 @@ class MailService extends CoreService {
 		}
 
 //var_dump($subject, $to, $from, $message, $filepath, $mimetype, $filename);exit;
-		$mailFile = new \CMailFile($subject, $to, $from, $message, $filepath, $mimetype, $filename, trackid: md5($to.$subject.$message));
+@		$mailFile = new \CMailFile($subject, $to, $from, $message, $filepath, $mimetype, $filename, trackid: md5($to.$subject.$message));
 
 		if (false === $mailFile->sendfile()) {
 			throw new \Exception('Unable to send mail ['.$subject.'] to '.$to.' from '.$from);
