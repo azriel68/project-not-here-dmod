@@ -3,6 +3,7 @@
 dol_include_once('/cowork/service/InvoiceService.php');
 dol_include_once('/cowork/service/PaymentService.php');
 dol_include_once('/cowork/service/MailService.php');
+dol_include_once('/cowork/service/ApiCoworkService.php');
 dol_include_once('/cowork/class/MailFile.class.php');
 
 class CronCowork {
@@ -18,57 +19,15 @@ class CronCowork {
 		$paymentService = \Dolibarr\Cowork\PaymentService::make($db, $user);
 		$mailService = \Dolibarr\Cowork\MailService::make($db, $user);
 
-		//TODO service ApiCoworkService
-		$curl = curl_init();
+		$apiCoworkService = new \Dolibarr\Cowork\ApiCoworkService();
 
-		curl_setopt_array($curl, array(
-			CURLOPT_URL => $conf->global->COWORK_API_HOST . '/login',
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_ENCODING => '',
-			CURLOPT_MAXREDIRS => 10,
-			CURLOPT_TIMEOUT => 0,
-			CURLOPT_FOLLOWLOCATION => true,
-			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-			CURLOPT_CUSTOMREQUEST => 'POST',
-			CURLOPT_POSTFIELDS => json_encode([
-				'email' => $conf->global->COWORK_API_USER,
-				'password' => $conf->global->COWORK_API_PASSWORD,
-			]),
-			CURLOPT_HTTPHEADER => array(
-				'Content-Type: application/json'
-			),
-		));
-
-		$user_string = curl_exec($curl);
-
-		curl_close($curl);
-		$user_api = json_decode($user_string);
-
-		if (empty($user_api)) {
+		$apiCoworkService->fetchUser();
+		if (empty($apiCoworkService->user)) {
 			$this->errors[] = 'login failed on '.$conf->global->COWORK_API_USER;
 			return -9;
 		}
 
-		$curl = curl_init();
-		curl_setopt_array($curl, array(
-			CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/baskets/payed',
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_ENCODING => '',
-			CURLOPT_MAXREDIRS => 10,
-			CURLOPT_TIMEOUT => 0,
-			CURLOPT_FOLLOWLOCATION => true,
-			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-			CURLOPT_CUSTOMREQUEST => 'GET',
-			CURLOPT_HTTPHEADER => array(
-				'Authorization: Bearer '.$user_api->token
-			),
-		));
-
-		$json = curl_exec($curl);
-
-		curl_close($curl);
-
-		$data = json_decode($json);
+		$data = $apiCoworkService->getBasketPayed();
 
 		if (empty($data)) {
 			$this->errors[] = 'No wallet found';
@@ -82,14 +41,17 @@ class CronCowork {
 
 			$userData = & $wallet->user;
 
+			$body_details = "";
+
 			$lines = [];
 			foreach($basket->pendingReservations as $pr) {
 				$dateStart = new \DateTime($pr->dateStart, new \DateTimeZone("UTC"));
 				$dateEnd = new \DateTime($pr->dateEnd, new \DateTimeZone("UTC"));
 
+				$description = 'Salle '. $pr->roomName.($pr->deskReference ? ', bureau '.$pr->deskReference : '')
+					.' du '.$dateStart->format('d/m/Y H:i').' à '.$dateEnd->format('H:i');
 				$lines[] = array_merge( (array)$pr, [
-					'description' => 'Salle '. $pr->roomName.($pr->deskReference ? ', bureau '.$pr->deskReference : '')
-						.' du '.$dateStart->format('d/m/Y H:i').' à '.$dateEnd->format('H:i'),
+					'description' => $description,
 					'dateStart' => $dateStart->getTimestamp(),
 					'dateEnd' => $dateEnd->getTimestamp(),
 					'subprice' => $pr->amount,
@@ -97,6 +59,7 @@ class CronCowork {
 					'price' => $pr->amountTTC,
 				]);
 
+				$body_details.= $description." \n";
 			}
 
 			$invoice = $invoiceService->create([
@@ -122,27 +85,76 @@ class CronCowork {
 				$rootfordata .= '/'.$this->entity;
 			}
 			 */
-			$mailService->sendMail('Facture '.$mysoc->name, 'ci-joint votre facture', $mysoc->email, $userData->email, [
+
+			$title = "Votre réservation à '{$mysoc->name}' à été confirmée";
+
+			$body = "{$title} \n
+{$mysoc->name} \n
+Prénom: {$userData->firstname} \n
+Nom: {$userData->lastname} \n
+Adresse email: {$userData->email} \n
+Numéro de téléphone: {$userData->phone} \n
+\n
+{$body_details}
+\n
+Veuillez trouver ci-joint la facture de votre/vos réservation(s)
+				";
+
+			$mailService->sendMail($title, $body, $mysoc->email, $userData->email, [
 				new \Dolibarr\Cowork\MailFile(substr($conf->facture->multidir_output[$invoice->entity], 0,-8).'/'.$invoice->last_main_doc)
 			]);
 
-			$curl = curl_init();
-			curl_setopt_array($curl, array(
-				CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/basket/billed/'.$basket->id.'/'.$invoice->ref,
-				CURLOPT_RETURNTRANSFER => true,
-				CURLOPT_ENCODING => '',
-				CURLOPT_MAXREDIRS => 10,
-				CURLOPT_TIMEOUT => 0,
-				CURLOPT_FOLLOWLOCATION => true,
-				CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-				CURLOPT_CUSTOMREQUEST => 'POST',
-				CURLOPT_POSTFIELDS => '',
-				CURLOPT_HTTPHEADER => array(
-					'Authorization: Bearer '.$user_api->token
-				),
-			));
+			$apiCoworkService->setInvoiceRef($basket->id,$invoice->ref);
 
-			$json = curl_exec($curl);
+		}
+
+		return 1;
+	}
+
+	function reminderForTodayReservations(): int {
+		global $db, $user, $langs, $conf, $mysoc;
+
+		$mailService = \Dolibarr\Cowork\MailService::make($db, $user);
+
+		$apiCoworkService = new \Dolibarr\Cowork\ApiCoworkService();
+
+		$apiCoworkService->fetchUser();
+		if (empty($apiCoworkService->user)) {
+			$this->errors[] = 'login failed on '.$conf->global->COWORK_API_USER;
+			return -9;
+		}
+
+		$reservations = $apiCoworkService->getTodayReservations();
+
+		if (empty($reservations)) {
+			$this->errors[] = 'No reservation found';
+			return 0;
+		}
+
+		foreach($reservations as $reservation) {
+
+			$this->output.='reservation '.$reservation->id.PHP_EOL;
+
+			$userData = & $reservation->user;
+
+			$dateStart = new \DateTime($reservation->dateStart, new \DateTimeZone("UTC"));
+			$dateEnd = new \DateTime($reservation->dateEnd, new \DateTimeZone("UTC"));
+
+			$title = "Rappel : Votre réservation à '{$mysoc->name}' du ".$dateStart->format('d/m/Y H:i').' à '.$dateEnd->format('H:i')."";
+
+			$body = "{$title} \n
+Prénom: {$userData->firstname} \n
+Nom: {$userData->lastname} \n
+Adresse email: {$userData->email} \n
+Numéro de téléphone: {$userData->phone} \n
+\n
+Salle ".$reservation->roomName.($reservation->deskReference ? ', bureau '.$reservation->deskReference : '')."
+	du ".$dateStart->format('d/m/Y H:i').' à '.$dateEnd->format('H:i')."
+\n
+Si besoin, pour ouvrir la porte, cliquez sur ce lien ".$conf->global->COWORK_FRONT_URI."/bookings
+				";
+
+			$mailService->sendMail($title, $body, $mysoc->email, $userData->email);
 		}
 
 		return 1;
