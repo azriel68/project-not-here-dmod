@@ -34,6 +34,8 @@ class CronCowork {
 			return 0;
 		}
 
+		$this->output = '';
+
 		foreach($data as $wallet) {
 			$basket = $wallet->basket;
 
@@ -100,7 +102,7 @@ Numéro de téléphone: {$userData->phone} \n
 Veuillez trouver ci-joint la facture de votre/vos réservation(s)
 				";
 
-			$mailService->sendMail($title, $body, $mysoc->email, $userData->email, [
+			$mailService->sendMail($title, $body, $mysoc->name.' <'. $mysoc->email.'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', [
 				new \Dolibarr\Cowork\MailFile(substr($conf->facture->multidir_output[$invoice->entity], 0,-8).'/'.$invoice->last_main_doc)
 			]);
 
