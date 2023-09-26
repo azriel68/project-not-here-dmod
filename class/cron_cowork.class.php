@@ -64,33 +64,38 @@ class CronCowork {
 				$body_details.= $description." \n";
 			}
 
-			$invoice = $invoiceService->create([
-				'ref_ext' => 'basket-'.$basket->id,
-				'entity' => $conf->entity,
-				'thirdparty' => array_merge((array) $userData, [
-						'ref_ext' => $userData->email,
-						'name' => trim($userData->company) ? $userData->company : $userData->firstname. ' ' . $userData->lastname,
-					]
-				),
-				'lines' => $lines,
-			]);
+			$invoiceRef = 'NO_LINE';
+			if (!empty($lines)) {
 
-			$paymentService->createFromInvoice($invoice, $basket->paymentId);
+				$invoice = $invoiceService->create([
+					'ref_ext' => 'basket-'.$basket->id,
+					'entity' => $conf->entity,
+					'thirdparty' => array_merge((array) $userData, [
+							'ref_ext' => $userData->email,
+							'name' => trim($userData->company) ? $userData->company : $userData->firstname. ' ' . $userData->lastname,
+						]
+					),
+					'lines' => $lines,
+				]);
 
-			if ($invoice->generateDocument('sponge', $langs) < 0) {
-				throw new \Exception('Invoice PDF::'.$invoice->error);
-			}
+				$paymentService->createFromInvoice($invoice, $basket->paymentId);
 
-			/* ?
-			$rootfordata = DOL_DATA_ROOT;
-			if (isModEnabled('multicompany') && !empty($this->entity) && $this->entity > 1) {
-				$rootfordata .= '/'.$this->entity;
-			}
-			 */
+				if ($invoice->generateDocument('sponge', $langs) < 0) {
+					throw new \Exception('Invoice PDF::'.$invoice->error);
+				}
 
-			$title = "Votre réservation à '{$mysoc->name}' à été confirmée";
+				$invoiceRef = $invoice->ref;
 
-			$body = "{$title} \n
+				/* ?
+				$rootfordata = DOL_DATA_ROOT;
+				if (isModEnabled('multicompany') && !empty($this->entity) && $this->entity > 1) {
+					$rootfordata .= '/'.$this->entity;
+				}
+				 */
+
+				$title = "Votre réservation à '{$mysoc->name}' à été confirmée";
+
+				$body = "{$title} \n
 {$mysoc->name} \n
 Prénom: {$userData->firstname} \n
 Nom: {$userData->lastname} \n
@@ -102,15 +107,17 @@ Numéro de téléphone: {$userData->phone} \n
 Veuillez trouver ci-joint la facture de votre/vos réservation(s)
 				";
 
-			$mailService->sendMail($title, $body, $mysoc->name.' <'. $mysoc->email.'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', [
-				new \Dolibarr\Cowork\MailFile(substr($conf->facture->multidir_output[$invoice->entity], 0,-8).'/'.$invoice->last_main_doc)
-			]);
+				$mailService->sendMail($title, $body, $mysoc->name.' <'. $mysoc->email.'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', [
+					new \Dolibarr\Cowork\MailFile(substr($conf->facture->multidir_output[$invoice->entity], 0,-8).'/'.$invoice->last_main_doc)
+				]);
 
-			$apiCoworkService->setInvoiceRef($basket->id,$invoice->ref);
+			}
+
+			$apiCoworkService->setInvoiceRef($basket->id, $invoiceRef);
 
 		}
 
-		return 1;
+		return 0;
 	}
 
 	function reminderForTodayReservations(): int {
@@ -159,7 +166,7 @@ Si besoin, pour ouvrir la porte, cliquez sur ce lien ".$conf->global->COWORK_FRO
 			$mailService->sendMail($title, $body, $mysoc->email, $userData->email);
 		}
 
-		return 1;
+		return 0;
 	}
 
 }
