@@ -94,6 +94,13 @@ class CronCowork {
 				continue; // not a managed entity
 			}
 
+			$placeData = &$basket->place;
+			$entity = $this->getEntityToSwitch($placeData->id);
+			if (null === $entity) {
+				$this->output .= ' (no managed) ';
+				continue; // not a managed entity
+			}
+
 			$body_details = [];
 
 			$invoice = $this->generateInvoice($basket, $userData, $body_details, $entity);
@@ -125,7 +132,7 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br /></p><br /
 À bientôt 👋<br /></p>
 </body></html>";
 
-			$mailService->sendMail($title, $body, $placeData->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
+			$mailService->sendMail($title, $body, $placeData->name.' <'. $entity->MAIN_INFO_SOCIETE_MAIL .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
 
 
 			$apiCoworkService->setInvoiceRef($basket->id, null==$invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '');
