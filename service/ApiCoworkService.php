@@ -41,26 +41,33 @@ class ApiCoworkService {
 	public function getBasketPayed(): array {
 		global $conf;
 
-		$curl = curl_init();
-		curl_setopt_array($curl, array(
-			CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/baskets/payed',
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_ENCODING => '',
-			CURLOPT_MAXREDIRS => 10,
-			CURLOPT_TIMEOUT => 0,
-			CURLOPT_FOLLOWLOCATION => true,
-			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-			CURLOPT_CUSTOMREQUEST => 'GET',
-			CURLOPT_HTTPHEADER => array(
-				'Authorization: Bearer '.$this->user->token
-			),
-		));
+		try {
+			$curl = curl_init();
+			curl_setopt_array($curl, array(
+				CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/baskets/payed',
+				CURLOPT_RETURNTRANSFER => true,
+				CURLOPT_ENCODING => '',
+				CURLOPT_MAXREDIRS => 10,
+				CURLOPT_TIMEOUT => 0,
+				CURLOPT_FOLLOWLOCATION => true,
+				CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+				CURLOPT_CUSTOMREQUEST => 'GET',
+				CURLOPT_HTTPHEADER => array(
+					'Authorization: Bearer '.$this->user->token
+				),
+			));
 
-		$json = curl_exec($curl);
+			$json = curl_exec($curl);
 
-		curl_close($curl);
+			curl_close($curl);
 
-		return json_decode($json);
+			return json_decode($json);
+
+		}
+		catch(\Exception $exception) {
+			dol_syslog(get_class($this).'::getBasketPayed '.$exception->getMessage());
+			return [];
+		}
 	}
 
 	public function setInvoiceRef($basketId, $invoiceRef): void {

@@ -36,6 +36,7 @@ class CronCowork {
 
 		$this->output = '';
 
+		try {
 		foreach($data as $wallet) {
 			$basket = $wallet->basket;
 
@@ -115,6 +116,12 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)
 
 			$apiCoworkService->setInvoiceRef($basket->id, $invoiceRef);
 
+		}
+
+		}
+		catch (Exception $exception) {
+			$this->output.='Exception '.$exception->getMessage();
+			return 2;
 		}
 
 		return 0;
