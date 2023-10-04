@@ -44,7 +44,7 @@ class CronCowork {
 
 			$userData = & $wallet->user;
 
-			$body_details = "";
+			$body_details = [];
 
 			$lines = [];
 			foreach($basket->pendingReservations as $pr) {
@@ -62,7 +62,8 @@ class CronCowork {
 					'price' => $pr->amountTTC,
 				]);
 
-				$body_details.= $description." \n";
+				$body_details[] = "Le <strong>bureau ".$pr->deskReference."</strong> dans la salle '<strong>". $pr->roomName."</strong>'
+					 le ".$dateStart->format('d/m/Y')." de ".$dateStart->format('H:i')." à ".$dateEnd->format('H:i');
 			}
 
 			$invoiceRef = 'NO_LINE';
@@ -94,23 +95,27 @@ class CronCowork {
 				}
 				 */
 
-				$title = "Votre réservation à '{$mysoc->name}' à été confirmée";
+				$title = "Votre réservation pour le '{$mysoc->name}' à été confirmée";
 
-				$body = "{$title} \n
-{$mysoc->name} \n
-Prénom: {$userData->firstname} \n
-Nom: {$userData->lastname} \n
-Adresse email: {$userData->email} \n
-Numéro de téléphone: {$userData->phone} \n
-\n
-{$body_details}
-\n
-Veuillez trouver ci-joint la facture de votre/vos réservation(s)
-				";
+
+				$body = "<html><body>
+<p>Merci d’avoir reservé :<br /><br />
+".implode('<br />', $body_details)."</p>
+
+<p>{$userData->firstname} {$userData->lastname} <br />
+{$userData->email} <br />
+{$userData->phone} <br />
+</p>
+
+<p>
+Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br />
+<br />
+À bientôt 👋<br /></p>
+</body></html>";
 
 				$mailService->sendMail($title, $body, $mysoc->name.' <'. $mysoc->email.'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', [
 					new \Dolibarr\Cowork\MailFile(substr($conf->facture->multidir_output[$invoice->entity], 0,-8).'/'.$invoice->last_main_doc)
-				]);
+				], true);
 
 			}
 
@@ -156,21 +161,31 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)
 			$dateStart = new \DateTime($reservation->dateStart, new \DateTimeZone("UTC"));
 			$dateEnd = new \DateTime($reservation->dateEnd, new \DateTimeZone("UTC"));
 
-			$title = "Rappel : Votre réservation à '{$mysoc->name}' du ".$dateStart->format('d/m/Y H:i').' à '.$dateEnd->format('H:i')."";
+			$title = " Rappel : Vous avez une réservation au '{$mysoc->name}' aujourd’hui !";
 
-			$body = "{$title} \n
-Prénom: {$userData->firstname} \n
-Nom: {$userData->lastname} \n
-Adresse email: {$userData->email} \n
-Numéro de téléphone: {$userData->phone} \n
-\n
-Salle ".$reservation->roomName.($reservation->deskReference ? ', bureau '.$reservation->deskReference : '')."
-	du ".$dateStart->format('d/m/Y H:i').' à '.$dateEnd->format('H:i')."
-\n
-Si besoin, pour ouvrir la porte, cliquez sur ce lien ".$conf->global->COWORK_FRONT_URI."/bookings
-				";
+			$body="<html><body>
+<p>Bonjour,<br />
+<br />
+Vous avez réservé :<br />
+<br />
+Le <strong>bureau {$reservation->deskReference}</strong> dans la salle '<strong>{$reservation->roomName}</strong>'<br />
+aujourd’hui de ".$dateStart->format('H:i')." à ".$dateEnd->format('H:i')."<br />
+</p>
+<br />
+<p>{$userData->firstname} {$userData->lastname} <br />
+{$userData->email} <br />
+{$userData->phone} <br />
+</p>
+<br />
+<p>Si besoin, pour ouvrir la porte,<br />
+<br />
+<a href=\"{$conf->global->COWORK_FRONT_URI}/bookings\" style=\"background:linear-gradient(to bottom, #e8b8a5 5%, #e8b8a5 100%);	background-color:#e8b8a5;	border-radius:28px;	border:1px solid #e8b8a5; font-weight: bold;	display:inline-block;	cursor:pointer;	color:#4a8198;	font-family:Arial;	font-size:17px;	padding:16px 31px;	text-decoration:none;	text-shadow:0px 1px 0px #e8b8a5;\"> cliquez ici ></a><br />
+<br />
+À tout à l'heure 👋<br />
+</p>
+</body></html>";
 
-			$mailService->sendMail($title, $body, $mysoc->email, $userData->email);
+			$mailService->sendMail($title, $body, $mysoc->name.' <'. $mysoc->email.'>', $userData->email, isHtml: true);
 		}
 
 		return 0;

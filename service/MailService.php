@@ -16,7 +16,7 @@ class MailService extends CoreService {
 	 * @param array<MailFile> $files
 	 * @return bool|string
 	 */
-	public function sendMail(string $subject, string $message, string $from, string $to, array $files = []): bool
+	public function sendMail(string $subject, string $message, string $from, string $to, array $files = [], $isHtml = false): bool
 	{
 
 		$filepath = $mimetype = $filename = [];
@@ -27,7 +27,7 @@ class MailService extends CoreService {
 		}
 
 //var_dump($subject, $to, $from, $message, $filepath, $mimetype, $filename);exit;
-@		$mailFile = new \CMailFile($subject, $to, $from, $message, $filepath, $mimetype, $filename, trackid: md5($to.$subject.$message));
+@		$mailFile = new \CMailFile($subject, $to, $from, $message, $filepath, $mimetype, $filename, msgishtml: (int)$isHtml, trackid: md5($to.$subject.$message));
 
 		if (false === $mailFile->sendfile()) {
 			throw new \Exception('Unable to send mail ['.$subject.'] to '.$to.' from '.$from);
