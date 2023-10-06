@@ -80,7 +80,10 @@ class CronCowork {
 					'lines' => $lines,
 				]);
 
-				$paymentService->createFromInvoice($invoice, $basket->paymentId ?? 'prepaid_contract');
+
+				if ($invoice->total_ht>0) {
+					$paymentService->createFromInvoice($invoice, $basket->paymentId ?? 'prepaid_contract');
+				}
 
 				if ($invoice->generateDocument('sponge', $langs) < 0) {
 					throw new \Exception('Invoice PDF::'.$invoice->error);
