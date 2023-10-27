@@ -132,7 +132,6 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br />
 		}
 		catch (Exception $exception) {
 			$this->output.='Exception '.$exception->getMessage();
-			return 2;
 		}
 
 		return 0;
