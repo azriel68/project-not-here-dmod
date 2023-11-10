@@ -44,67 +44,15 @@ class CronCowork {
 
 			$userData = & $wallet->user;
 
+			$placeData = &$userData->place;
+
 			$body_details = [];
 
-			$lines = [];
-			foreach($basket->pendingReservations as $pr) {
-				$dateStart = new \DateTime($pr->dateStart, new \DateTimeZone("UTC"));
-				$dateEnd = new \DateTime($pr->dateEnd, new \DateTimeZone("UTC"));
+			$invoice = $this->generateInvoice($basket, $userData, $body_details);
 
-				$description = 'Salle '. $pr->roomName.($pr->deskReference ? ', bureau '.$pr->deskReference : '')
-					.' du '.$dateStart->format('d/m/Y H:i').' à '.$dateEnd->format('H:i');
-				$lines[] = array_merge( (array)$pr, [
-					'description' => $description,
-					'dateStart' => $dateStart->getTimestamp(),
-					'dateEnd' => $dateEnd->getTimestamp(),
-					'subprice' => $pr->amount,
-					'tvatx' => $basket->vatRate,
-					'price' => $pr->amountTTC,
-				]);
+			$title = "Votre réservation pour le '{$placeData->name}' à été confirmée";
 
-				$body_details[] = "Le <strong>bureau ".$pr->deskReference."</strong> dans la salle '<strong>". $pr->roomName."</strong>'
-					 le ".$dateStart->format('d/m/Y')." de ".$dateStart->format('H:i')." à ".$dateEnd->format('H:i');
-			}
-
-			$invoiceRef = 'NO_LINE';
-			if (!empty($lines)) {
-
-				$invoice = $invoiceService->create([
-					'ref_ext' => 'basket-'.$basket->id,
-					'entity' => $conf->entity,
-					'thirdparty' => array_merge((array) $userData, [
-							'ref_ext' => $userData->email,
-							'name' => trim($userData->company) ? $userData->company : $userData->firstname. ' ' . $userData->lastname,
-						]
-					),
-					'lines' => $lines,
-				]);
-
-
-				if ($invoice->total_ht>0) {
-					$paymentService->createFromInvoice($invoice, $basket->paymentId ?? 'prepaid_contract');
-				}
-				else {
-					$invoice->setPaid($user);
-				}
-
-				if ($invoice->generateDocument('sponge', $langs) < 0) {
-					throw new \Exception('Invoice PDF::'.$invoice->error);
-				}
-
-				$invoiceRef = $invoice->ref;
-
-				/* ?
-				$rootfordata = DOL_DATA_ROOT;
-				if (isModEnabled('multicompany') && !empty($this->entity) && $this->entity > 1) {
-					$rootfordata .= '/'.$this->entity;
-				}
-				 */
-
-				$title = "Votre réservation pour le '{$mysoc->name}' à été confirmée";
-
-
-				$body = "<html><body>
+			$body = "<html><body>
 <p>Merci d’avoir reservé :<br /><br />
 ".implode('<br />', $body_details)."</p>
 
@@ -112,21 +60,29 @@ class CronCowork {
 {$userData->email} <br />
 {$userData->phone} <br />
 </p>
-
+";
+			$files = [];
+			if (null!==$invoice) {
+				$body.="<br />
 <p>
-Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br />
+Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br /></p><br />
+";
+
+				$files[] = new \Dolibarr\Cowork\MailFile(substr($conf->facture->multidir_output[$invoice->entity], 0,-8).'/'.$invoice->last_main_doc);
+			}
+
+			$body.="
+			<p>
 <br />
 À bientôt 👋<br /></p>
 </body></html>";
 
-				$mailService->sendMail($title, $body, $mysoc->name.' <'. $mysoc->email.'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', [
-					new \Dolibarr\Cowork\MailFile(substr($conf->facture->multidir_output[$invoice->entity], 0,-8).'/'.$invoice->last_main_doc)
-				], true);
+			$mailService->sendMail($title, $body, $mysoc->name.' <'. $mysoc->email.'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
 
+
+			if (null!==$invoice) {
+				$apiCoworkService->setInvoiceRef($basket->id, $invoice->ref);
 			}
-
-			$apiCoworkService->setInvoiceRef($basket->id, $invoiceRef);
-
 		}
 
 		}
@@ -135,6 +91,68 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br />
 		}
 
 		return 0;
+	}
+
+	private function generateInvoice(&$basket, &$userData, &$body_details): ?Facture
+	{
+
+		global $db, $user, $langs, $conf;
+
+		$invoiceService = \Dolibarr\Cowork\InvoiceService::make($db, $user);
+		$paymentService = \Dolibarr\Cowork\PaymentService::make($db, $user);
+
+		$lines = [];
+
+		$total = 0;
+		foreach($basket->pendingReservations as $pr) {
+			$dateStart = new \DateTime($pr->dateStart, new \DateTimeZone("UTC"));
+			$dateEnd = new \DateTime($pr->dateEnd, new \DateTimeZone("UTC"));
+
+			$description = 'Salle '. $pr->roomName.($pr->deskReference ? ', bureau '.$pr->deskReference : '')
+				.' du '.$dateStart->format('d/m/Y H:i').' à '.$dateEnd->format('H:i');
+			$lines[] = array_merge( (array)$pr, [
+				'description' => $description,
+				'dateStart' => $dateStart->getTimestamp(),
+				'dateEnd' => $dateEnd->getTimestamp(),
+				'subprice' => $pr->amount,
+				'tvatx' => $basket->vatRate,
+				'price' => $pr->amountTTC,
+			]);
+
+			$total+=$pr->amount;
+
+			$body_details[] = "Le <strong>bureau ".$pr->deskReference."</strong> dans la salle '<strong>". $pr->roomName."</strong>'
+					 le ".$dateStart->format('d/m/Y')." de ".$dateStart->format('H:i')." à ".$dateEnd->format('H:i');
+		}
+
+		if ($total === 0) {
+			return null;
+		}
+
+		$invoice = $invoiceService->create([
+			'ref_ext' => 'basket-'.$basket->id,
+			'entity' => $conf->entity,
+			'thirdparty' => array_merge((array) $userData, [
+					'ref_ext' => $userData->email,
+					'name' => trim($userData->company) ? $userData->company : $userData->firstname. ' ' . $userData->lastname,
+				]
+			),
+			'lines' => $lines,
+		]);
+
+
+		if ($invoice->total_ht>0) {
+			$paymentService->createFromInvoice($invoice, $basket->paymentId ?? 'prepaid_contract');
+		}
+		else {
+			$invoice->setPaid($user);
+		}
+
+		if ($invoice->generateDocument('sponge', $langs) < 0) {
+			throw new \Exception('Invoice PDF::'.$invoice->error);
+		}
+
+		return $invoice;
 	}
 
 	function reminderForTodayReservations(): int {
