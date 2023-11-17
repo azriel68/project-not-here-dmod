@@ -80,9 +80,7 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br /></p><br /
 			$mailService->sendMail($title, $body, $mysoc->name.' <'. $mysoc->email.'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
 
 
-			if (null!==$invoice) {
-				$apiCoworkService->setInvoiceRef($basket->id, $invoice->ref);
-			}
+			$apiCoworkService->setInvoiceRef($basket->id, null==$invoice ? '' : $invoice->ref);
 		}
 
 		}
