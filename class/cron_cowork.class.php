@@ -77,12 +77,10 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br /></p><br /
 À bientôt 👋<br /></p>
 </body></html>";
 
-			$mailService->sendMail($title, $body, $mysoc->name.' <'. $mysoc->email.'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
+			$mailService->sendMail($title, $body, $placeData->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
 
 
-			if (null!==$invoice) {
-				$apiCoworkService->setInvoiceRef($basket->id, $invoice->ref);
-			}
+			$apiCoworkService->setInvoiceRef($basket->id, null==$invoice ? 'NO_INVOICE' : $invoice->ref);
 		}
 
 		}
@@ -184,7 +182,7 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br /></p><br /
 			$dateStart = new \DateTime($reservation->dateStart, new \DateTimeZone("UTC"));
 			$dateEnd = new \DateTime($reservation->dateEnd, new \DateTimeZone("UTC"));
 
-			$title = " Rappel : Vous avez une réservation au '{$mysoc->name}' aujourd’hui !";
+			$title = " Rappel : Vous avez une réservation au '{$userData->place->name}' aujourd’hui !";
 
 			$body="<html><body>
 <p>Bonjour,<br />
@@ -208,7 +206,7 @@ aujourd’hui de ".$dateStart->format('H:i')." à ".$dateEnd->format('H:i')."<br
 </p>
 </body></html>";
 
-			$mailService->sendMail($title, $body, $mysoc->name.' <'. $mysoc->email.'>', $userData->email, isHtml: true);
+			$mailService->sendMail($title, $body, $userData->place->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->email, isHtml: true);
 		}
 
 		return 0;
