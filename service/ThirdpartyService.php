@@ -11,7 +11,7 @@ class ThirdpartyService extends CoreService {
 	/**
 	 * @throws \Exception
 	 */
-	public function updateOrcreate(array $data): \Societe {
+	public function updateOrcreate(array $data, $entity): \Societe {
 
 		$societe = new \Societe($this->db);
 
@@ -24,6 +24,7 @@ class ThirdpartyService extends CoreService {
 		$societe->zip = $data['zip'];
 		$societe->phone = $data['phone'];
 		$societe->email = $data['email'];
+		$societe->entity = $entity;
 
 		if ($societe->id > 0) {
 			$res = $societe->update($societe->id, $this->user);

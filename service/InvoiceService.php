@@ -17,6 +17,7 @@ class InvoiceService extends CoreService {
 
 	public function create(array $data): \Facture
 	{
+		global $conf;
 		$this->db->begin();
 
 		$invoice = new \Facture($this->db);
@@ -29,7 +30,7 @@ class InvoiceService extends CoreService {
 
 		$thirdpartyService = ThirdpartyService::make($this->db, $this->user);
 
-		$invoice->socid = ($thirdpartyService->updateOrcreate($data['thirdparty']))->id;
+		$invoice->socid = ($thirdpartyService->updateOrcreate($data['thirdparty'], $invoice->entity))->id;
 
 		if ($invoice->create($this->user)<0) {
 			throw new \Exception($invoice->error);

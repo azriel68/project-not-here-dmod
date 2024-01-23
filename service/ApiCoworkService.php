@@ -28,7 +28,8 @@ class ApiCoworkService {
 				'password' => $conf->global->COWORK_API_PASSWORD,
 			]),
 			CURLOPT_HTTPHEADER => array(
-				'Content-Type: application/json'
+				'Content-Type: application/json',
+				'Coworkid: '.$conf->global->COWORK_ID
 			),
 		));
 
@@ -53,7 +54,8 @@ class ApiCoworkService {
 				CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
 				CURLOPT_CUSTOMREQUEST => 'GET',
 				CURLOPT_HTTPHEADER => array(
-					'Authorization: Bearer '.$this->user->token
+					'Authorization: Bearer '.$this->user->token,
+					'Coworkid: '.$conf->global->COWORK_ID
 				),
 			));
 
@@ -70,12 +72,11 @@ class ApiCoworkService {
 		}
 	}
 
-	public function setInvoiceRef($basketId, $invoiceRef): void {
+	public function setInvoiceRef($basketId, $invoiceRef, $filepath): void {
 		global $conf;
-
 		$curl = curl_init();
 		curl_setopt_array($curl, array(
-			CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/basket/billed/'.$basketId.'/'.$invoiceRef,
+			CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/basket/billed/'.$basketId,
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_ENCODING => '',
 			CURLOPT_MAXREDIRS => 10,
@@ -83,9 +84,14 @@ class ApiCoworkService {
 			CURLOPT_FOLLOWLOCATION => true,
 			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
 			CURLOPT_CUSTOMREQUEST => 'POST',
-			CURLOPT_POSTFIELDS => '',
+			CURLOPT_POSTFIELDS => json_encode([
+				'invoice_path'=>$filepath,
+				'invoice_ref' =>$invoiceRef,
+			]),
 			CURLOPT_HTTPHEADER => array(
-				'Authorization: Bearer '.$this->user->token
+				'Authorization: Bearer '.$this->user->token,
+				'Coworkid: '.$conf->global->COWORK_ID
+
 			),
 		));
 
@@ -106,7 +112,8 @@ class ApiCoworkService {
 			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
 			CURLOPT_CUSTOMREQUEST => 'GET',
 			CURLOPT_HTTPHEADER => array(
-				'Authorization: Bearer '.$this->user->token
+				'Authorization: Bearer '.$this->user->token,
+				'Coworkid: '.$conf->global->COWORK_ID
 			),
 		));
 
@@ -116,5 +123,33 @@ class ApiCoworkService {
 
 		return json_decode($json);
 	}
+
+    public function getCoworks()
+    {
+		global $conf;
+
+		$curl = curl_init();
+		curl_setopt_array($curl, array(
+			CURLOPT_URL => $conf->global->COWORK_API_HOST.'/superadmin/places',
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_ENCODING => '',
+			CURLOPT_MAXREDIRS => 10,
+			CURLOPT_TIMEOUT => 30,
+			CURLOPT_FOLLOWLOCATION => true,
+			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			CURLOPT_CUSTOMREQUEST => 'GET',
+			CURLOPT_HTTPHEADER => array(
+				'Authorization: Bearer '.$this->user->token,
+				'Coworkid: '.$conf->global->COWORK_ID
+
+			),
+		));
+
+		$json = curl_exec($curl);
+
+		curl_close($curl);
+
+		return json_decode($json);
+    }
 
 }
