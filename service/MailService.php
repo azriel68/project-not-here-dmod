@@ -3,7 +3,7 @@
 namespace Dolibarr\Cowork;
 
 dol_include_once('/cowork/service/CoreService.php');
-
+require_once DOL_DOCUMENT_ROOT . '/core/class/CMailFile.class.php';
 use Dolibarr\Core\CoreService;
 
 class MailService extends CoreService {
