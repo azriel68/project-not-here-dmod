@@ -308,7 +308,7 @@ aujourd’hui de ".$dateStart->format('H:i')." à ".$dateEnd->format('H:i')."<br
 <br />
 <p>Si besoin, pour ouvrir la porte,<br />
 <br />
-<a href=\"{$place->front_url}bookings\" style=\"background:linear-gradient(to bottom, #e8b8a5 5%, #e8b8a5 100%);	background-color:#e8b8a5;	border-radius:28px;	border:1px solid #e8b8a5; font-weight: bold;	display:inline-block;	cursor:pointer;	color:#4a8198;	font-family:Arial;	font-size:17px;	padding:16px 31px;	text-decoration:none;	text-shadow:0px 1px 0px #e8b8a5;\"> cliquez ici ></a><br />
+<a href=\"{$place->front_url}bookings\" style=\"background:linear-gradient(to bottom, #FA7C71 5%, #FA7C71 100%);	background-color:#FA7C71;	border-radius:28px;	border:1px solid #FA7C71; font-weight: bold;	display:inline-block;	cursor:pointer;	color:#001E24;	font-family:Arial;	font-size:17px;	padding:16px 31px;	text-decoration:none;	text-shadow:0px 1px 0px #FA7C71;\"> cliquez ici </a><br />
 <br />
 À tout à l'heure 👋<br />
 </p>
