@@ -14,7 +14,7 @@ class ApiCoworkService {
 
 		$curl = curl_init();
 
-		curl_setopt_array($curl, array(
+		curl_setopt_array($curl, array( //TODO factorize curl
 			CURLOPT_URL => $conf->global->COWORK_API_HOST . '/login',
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_ENCODING => '',
@@ -39,13 +39,13 @@ class ApiCoworkService {
 		$this->user = json_decode($user_string);
 	}
 
-	public function getBasketPayed(): array {
+	public function getPaymentsPayed(): array {
 		global $conf;
 
 		try {
 			$curl = curl_init();
 			curl_setopt_array($curl, array(
-				CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/baskets/payed',
+				CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/payments/payed',
 				CURLOPT_RETURNTRANSFER => true,
 				CURLOPT_ENCODING => '',
 				CURLOPT_MAXREDIRS => 10,
@@ -72,11 +72,11 @@ class ApiCoworkService {
 		}
 	}
 
-	public function setInvoiceRef($basketId, $invoiceRef, $filepath): void {
+	public function setInvoiceRef($paymentId, $invoiceRef, $filepath): mixed {
 		global $conf;
 		$curl = curl_init();
 		curl_setopt_array($curl, array(
-			CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/basket/billed/'.$basketId,
+			CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/payment/billed/'.$paymentId,
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_ENCODING => '',
 			CURLOPT_MAXREDIRS => 10,
@@ -95,7 +95,8 @@ class ApiCoworkService {
 			),
 		));
 
-		curl_exec($curl);
+		$json = curl_exec($curl);
+		return json_decode($json);
 	}
 
 	public function getTodayReservations(): array {
@@ -151,5 +152,31 @@ class ApiCoworkService {
 
 		return json_decode($json);
     }
+
+	public function getContractsWithAmount(): array {
+		global $conf;
+
+		$curl = curl_init();
+		curl_setopt_array($curl, array(
+			CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/contracts/billing',
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_ENCODING => '',
+			CURLOPT_MAXREDIRS => 10,
+			CURLOPT_TIMEOUT => 30,
+			CURLOPT_FOLLOWLOCATION => true,
+			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			CURLOPT_CUSTOMREQUEST => 'GET',
+			CURLOPT_HTTPHEADER => array(
+				'Authorization: Bearer '.$this->user->token,
+				'Coworkid: '.$conf->global->COWORK_ID
+			),
+		));
+
+		$json = curl_exec($curl);
+
+		curl_close($curl);
+
+		return json_decode($json);
+	}
 
 }

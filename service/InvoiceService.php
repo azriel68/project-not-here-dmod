@@ -21,7 +21,7 @@ class InvoiceService extends CoreService {
 		$this->db->begin();
 
 		$invoice = new \Facture($this->db);
-		$invoice->ref_ext = $data['ref_ext'];
+		$invoice->ref_ext = $data['ref_ext']; //TODO check if ref_ext already exist
 		$invoice->entity = $data['entity'];
 		$invoice->type = \Facture::TYPE_STANDARD;
 		$invoice->brouillon = 0;
@@ -62,9 +62,9 @@ class InvoiceService extends CoreService {
 				0,
 				0,
 				0,
-				0,
-				$line['dateStart'],
-				$line['dateEnd'],
+				$line['remise_percent'] ?? 0,
+				$line['dateStart'] ?? '',
+				$line['dateEnd'] ?? '',
 				0,
 				0,
 				0,

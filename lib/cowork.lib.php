@@ -54,11 +54,11 @@ function coworkAdminPrepareHead()
 	$head[$h][2] = 'myobject_extrafields';
 	$h++;
 	*/
-
-	$head[$h][0] = dol_buildpath("/cowork/admin/about.php", 1);
-	$head[$h][1] = $langs->trans("About");
-	$head[$h][2] = 'about';
-	$h++;
+//
+//	$head[$h][0] = dol_buildpath("/cowork/admin/about.php", 1);
+//	$head[$h][1] = $langs->trans("About");
+//	$head[$h][2] = 'about';
+//	$h++;
 
 	// Show more tabs from modules
 	// Entries must be declared in modules descriptor with line

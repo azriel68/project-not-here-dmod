@@ -18,21 +18,22 @@
 #
 
 # Module label 'ModuleCoworkName'
-ModuleCoworkName = Cowork
+ModuleCoworkName = DollyDesk
 # Module description 'ModuleCoworkDesc'
-ModuleCoworkDesc = Cowork description
+ModuleCoworkDesc = L'application pour les cowork de taille humaine
 
 #
 # Admin page
 #
-CoworkSetup = Cowork setup
+CoworkSetup = DollyDesk Setup
 Settings = Settings
-CoworkSetupPage = Cowork setup page
-COWORK_MYPARAM1 = My param 1
-COWORK_MYPARAM1Tooltip = My param 1 tooltip
-COWORK_MYPARAM2=My param 2
-COWORK_MYPARAM2Tooltip=My param 2 tooltip
-
+CoworkSetupPage = DollyDesk setup page
+COWORK_API_HOST = Url de l'API DollyDesk
+COWORK_API_HOSTTooltip = Surement https://api.dollydesk.com ;-)
+COWORK_ID=L'identifiant unique de votre Cowork
+COWORK_IDTooltip=sur page de gestion de ce dernier sur DollyDesk
+COWORK_API_USER=Votre identififiant Administrateur DollyDesk
+COWORK_API_PASSWORD=Votre mot de passe DollyDesk
 
 #
 # About page

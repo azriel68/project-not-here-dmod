@@ -58,7 +58,7 @@ class CronCowork {
 
 	public function createSpotBills(): int
 	{
-		global $db, $user, $langs, $conf;
+		global $db, $user, $conf;
 
 		$mailService = \Dolibarr\Cowork\MailService::make($db, $user);
 
@@ -70,7 +70,7 @@ class CronCowork {
 			return -9;
 		}
 
-		$data = $apiCoworkService->getBasketPayed();
+		$data = $apiCoworkService->getPaymentsPayed();
 
 		if (empty($data)) {
 			$this->errors[] = 'No wallet found';
@@ -82,12 +82,10 @@ class CronCowork {
 		try {
 		foreach($data as $wallet) {
 			$basket = $wallet->basket;
+			$contract = $wallet->contract;
+			$userData = $wallet->user;
+			$placeData = $wallet->place;
 
-			$this->output.='basket '.$basket->id.PHP_EOL;
-				$userData = & $wallet->user;
-
-
-			$placeData = &$basket->place;
 			$entity = $this->getEntityToSwitch($placeData->id);
 			if (null === $entity) {
 				$this->output .= ' (no managed) ';
@@ -102,12 +100,17 @@ class CronCowork {
 			}
 
 			$body_details = [];
+			$body = null;
+			$invoice = null;
 
-			$invoice = $this->generateInvoice($basket, $userData, $body_details, $entity);
+			if (!empty($basket)) {
 
-			$title = "Votre réservation pour le '{$placeData->name}' à été confirmée";
+				$this->output.='basket '.$basket->id.PHP_EOL;
+				$invoice = $this->generateReservationInvoice($wallet, $body_details, $entity);
 
-			$body = "<html><body>
+				$title = "Votre réservation pour le '{$placeData->name}' à été confirmée";
+
+				$body = "<html><body>
 <p>Merci d’avoir reservé :<br /><br />
 ".implode('<br />', $body_details)."</p>
 
@@ -116,17 +119,17 @@ class CronCowork {
 {$userData->phone} <br />
 </p>
 ";
-			$files = [];
-			if (null!==$invoice) {
-				$body.="<br />
+				$files = [];
+				if (null!==$invoice) {
+					$body.="<br />
 <p>
 Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br /></p><br />
 ";
 
-				$files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
-			}
+					$files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
+				}
 
-			$body.="
+				$body.="
 			<p>
 <br />
 À bientôt 👋<br /></p>
@@ -134,8 +137,40 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br /></p><br /
 
 			$mailService->sendMail($title, $body, $placeData->name.' <'. $entity->MAIN_INFO_SOCIETE_MAIL .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
 
+				$title = "Votre facture de contrat pour le '{$placeData->name}'";
 
-			$apiCoworkService->setInvoiceRef($basket->id, null==$invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '');
+				$body = "<html><body>
+<p>Merci de nous faire confiance :<br /><br />
+".implode('<br />', $body_details)."</p>
+
+<p>{$userData->firstname} {$userData->lastname} <br />
+{$userData->email} <br />
+{$userData->phone} <br />
+</p>
+";
+				$files = [];
+				if (null!==$invoice) {
+					$body.="<br />
+<p>
+Veuillez trouver ci-joint la facture de votre contrat<br /></p><br />
+";
+
+					$files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
+				}
+
+				$body.="
+			<p>
+<br />
+À bientôt 👋<br /></p>
+</body></html>";
+
+			}
+
+			if (!empty($body)) {
+				$mailService->sendMail($title, $body, $placeData->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
+			}
+
+			$apiCoworkService->setInvoiceRef($wallet->id, null===$invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '');
 		}
 
 		}
@@ -191,13 +226,11 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br /></p><br /
 		return $result;
 	}
 
-	private function generateInvoice(&$basket, &$userData, &$body_details, $entity ): ?Facture
+	private function generateReservationInvoice($wallet, &$body_details, $entity ): ?Facture
 	{
 
-		global $db, $user, $langs, $conf, $mysoc;
-
-		$invoiceService = \Dolibarr\Cowork\InvoiceService::make($db, $user);
-		$paymentService = \Dolibarr\Cowork\PaymentService::make($db, $user);
+		$basket = $wallet->basket;
+		$userData = $wallet->user;
 
 		$lines = [];
 
@@ -227,12 +260,8 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br /></p><br /
 			return null;
 		}
 
-		$conf->entity = $entity->id;
-		$conf->setValues($db);
-		$mysoc->setMysoc($conf);
-
-		$invoice = $invoiceService->create([
-			'ref_ext' => 'basket-'.$basket->id,
+		$invoice = $this->generateInvoice($entity, [
+			'ref_ext' => $wallet->id,
 			'entity' => $entity->id,
 			'thirdparty' => array_merge((array) $userData, [
 					'ref_ext' => $userData->email,
@@ -240,11 +269,27 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br /></p><br /
 				]
 			),
 			'lines' => $lines,
+			'payment_id' => $wallet->paymentId ?? 'prepaid_contract',
 		]);
-		echo $invoice->ref;
+
+		return $invoice;
+	}
+
+	private function generateInvoice($entity, $data) {
+		global $db, $user, $langs, $conf, $mysoc;
+
+		$invoiceService = \Dolibarr\Cowork\InvoiceService::make($db, $user);
+		$paymentService = \Dolibarr\Cowork\PaymentService::make($db, $user);
+
+		$conf->entity = $entity->id;
+		$conf->setValues($db);
+		$mysoc->setMysoc($conf);
+
+		$invoice = $invoiceService->create($data);
+		$this->output .= ' invoice -> '. $invoice->ref;
 
 		if ($invoice->total_ht>0) {
-			$paymentService->createFromInvoice($invoice, $basket->paymentId ?? 'prepaid_contract');
+			$paymentService->createFromInvoice($invoice,  $data['payment_id']);
 		}
 		else {
 			$invoice->setPaid($user);
@@ -257,6 +302,53 @@ Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br /></p><br /
 		$conf->entity = 1;
 		$conf->setValues($db);
 		$mysoc->setMysoc($conf);
+
+		return $invoice;
+	}
+
+	private function generateContractInvoice($wallet, &$body_details, $entity ): ?Facture
+	{
+		$contract = $wallet->contract;
+		$userData = $wallet->user;
+
+		$lines = [];
+		$descriptions = [];
+		$total = 0;
+		foreach($contract->desk as $desk) {
+
+			$days_string = 'todo';
+
+			$descriptions[] = 'Salle '. $desk->room_name.($desk->reference ? ', bureau '.$desk->reference : '')
+				.' le '.$days_string;
+
+			$body_details[] = 'Le <strong>bureau ".$desk->reference."</strong> dans la salle <strong>'. $desk->room_name.'</strong>
+					 le '.$days_string;
+		}
+
+		$vat_rate = $wallet->place->vat_rate; //TODO contract vat_rate
+		$lines[] = array_merge( (array)$contract, [
+			'description' => implode("\n\n", $descriptions),
+			'subprice' => $contract->amount,
+			'tvatx' =>$vat_rate,
+			'price' => $contract->amount * (1 + ($vat_rate/ 100)),
+			'remise_percent' => $contract->discount_percent,
+		]);
+
+		if ($contract->amount === 0) {
+			return null;
+		}
+
+		$invoice = $this->generateInvoice($entity, [
+			'ref_ext' =>$wallet->id,
+			'entity' => $entity->id,
+			'thirdparty' => array_merge((array) $userData, [
+					'ref_ext' => $userData->email,
+					'name' => trim($userData->company) ? $userData->company : $userData->firstname. ' ' . $userData->lastname,
+				]
+			),
+			'lines' => $lines,
+			'payment_id' => $wallet->paymentId ?? 'prepaid_contract',
+		]);
 
 		return $invoice;
 	}
