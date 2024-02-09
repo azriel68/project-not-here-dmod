@@ -110,60 +110,35 @@ class CronCowork {
 
 				$title = "Votre réservation pour le '{$placeData->name}' à été confirmée";
 
-				$body = "<html><body>
-<p>Merci d’avoir reservé :<br /><br />
-".implode('<br />', $body_details)."</p>
-
-<p>{$userData->firstname} {$userData->lastname} <br />
-{$userData->email} <br />
-{$userData->phone} <br />
-</p>
-";
 				$files = [];
 				if (null!==$invoice) {
-					$body.="<br />
-<p>
-Veuillez trouver ci-joint la facture de votre/vos réservation(s)<br /></p><br />
-";
-
 					$files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
+					$body = $mailService->getHTML('email.invoice.reservation', [
+						'body_details' => implode("<br/>", $body_details),
+						'user' => $userData,
+					]);
 				}
-
-				$body.="
-			<p>
-<br />
-À bientôt 👋<br /></p>
-</body></html>";
+				else {
+					$body = $mailService->getHTML('email.reservation', [
+						'body_details' => implode("<br/>", $body_details),
+						'user' => $userData,
+					]);
+				}
 
 			$mailService->sendMail($title, $body, $placeData->name.' <'. $entity->MAIN_INFO_SOCIETE_MAIL .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
 
 				$title = "Votre facture de contrat pour le '{$placeData->name}'";
 
-				$body = "<html><body>
-<p>Merci de nous faire confiance :<br /><br />
-".implode('<br />', $body_details)."</p>
+				$body = $mailService->getHTML('email.invoice.contract', [
+					'body_details' => $body_details,
+					'user' => $userData,
+				]);
 
-<p>{$userData->firstname} {$userData->lastname} <br />
-{$userData->email} <br />
-{$userData->phone} <br />
-</p>
-";
+
 				$files = [];
 				if (null!==$invoice) {
-					$body.="<br />
-<p>
-Veuillez trouver ci-joint la facture de votre contrat<br /></p><br />
-";
-
 					$files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
 				}
-
-				$body.="
-			<p>
-<br />
-À bientôt 👋<br /></p>
-</body></html>";
-
 			}
 
 			if (!empty($body)) {
@@ -391,27 +366,14 @@ Veuillez trouver ci-joint la facture de votre contrat<br /></p><br />
 
 			$title = " Rappel : Vous avez une réservation au '{$place->name}' aujourd’hui !";
 
-			$body="<html><body>
-<p>Bonjour,<br />
-<br />
-Vous avez réservé :<br />
-<br />
-Le <strong>bureau {$reservation->deskReference}</strong> dans la salle '<strong>{$reservation->roomName}</strong>'<br />
-aujourd’hui de ".$dateStart->format('H:i')." à ".$dateEnd->format('H:i')."<br />
-</p>
-<br />
-<p>{$userData->firstname} {$userData->lastname} <br />
-{$userData->email} <br />
-{$userData->phone} <br />
-</p>
-<br />
-<p>Si besoin, pour ouvrir la porte,<br />
-<br />
-<a href=\"{$place->front_url}bookings\" style=\"background:linear-gradient(to bottom, #FA7C71 5%, #FA7C71 100%);	background-color:#FA7C71;	border-radius:28px;	border:1px solid #FA7C71; font-weight: bold;	display:inline-block;	cursor:pointer;	color:#001E24;	font-family:Arial;	font-size:17px;	padding:16px 31px;	text-decoration:none;	text-shadow:0px 1px 0px #FA7C71;\"> cliquez ici </a><br />
-<br />
-À tout à l'heure 👋<br />
-</p>
-</body></html>";
+			$body=$mailService->getHTML('email.reservation.today',  [
+				'reservation'=>$reservation,
+				'link_door'=>$place->front_url.'bookings',
+				'user' => $userData,
+				'hour_start' => $dateStart->format('H:i'),
+				'hour_end' => $dateEnd->format('H:i'),
+			]
+			);
 
 			$mailService->sendMail($title, $body, $place->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->email, isHtml: true);
 		}

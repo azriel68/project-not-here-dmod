@@ -35,4 +35,30 @@ class MailService extends CoreService {
 
 		return true;
 	}
+
+	private function getReplacements(mixed $params, string $prepend = '') :array
+	{
+		$result = [];
+		foreach($params as $key => $value) {
+			if (is_array($value) || is_object($value)) {
+				$result = array_merge($result, $this->getReplacements($value, $key.'_'));
+			}
+			else {
+				$result['__'.$prepend.$key.'__'] = $value;
+			}
+		}
+
+		return array_change_key_case($result, CASE_UPPER);
+	}
+
+    public function getHTML(string $file, array $params): string
+    {
+		$replacements = $this->getReplacements($params);
+//		var_dump($replacements);
+		$html = file_get_contents(__DIR__.'/../templates/'.$file.'.html');
+
+		$html = strtr($html, $replacements);
+
+		return $html;
+    }
 }
