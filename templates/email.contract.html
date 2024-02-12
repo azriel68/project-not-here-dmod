@@ -1,18 +1,16 @@
-<html><body>
-<p>Bonjour __USER_FIRSTNAME__, <br/><br/>Merci de nous faire confiance :<br /><br />
-    Voici ton contrat, mais sache qu'il te faut valider un moyen de paiement pour le prélèvement mensuel donc clique sur ce gros bouton (ou demande à ton responsable qui paye de cliquer dessus)
-
-    <br />
-    <a href="__LINK_PAYMENT__" style="background:linear-gradient(to bottom, #FA7C71 5%, #FA7C71 100%);	background-color:#FA7C71;	border-radius:28px;	border:1px solid #FA7C71; font-weight: bold;	display:inline-block;	cursor:pointer;	color:#001E24;	font-family:Arial;	font-size:17px;	padding:16px 31px;	text-decoration:none;	text-shadow:0px 1px 0px #FA7C71;"> Je valide un moyen de paiement réccurent</a><br />
-    <br />
-</p>
-
-<p>__USER_FIRSTNAME__ __USER_LASTNAME__<br />
-    __USER_EMAIL__ <br />
-    __USER_PHONE__ <br />
-</p>
-    Tout le bla bla du contrat utilisateur que Bernard va écrire ;-)
-<br />
-    <br />
-    À bientôt 👋<br /></p>
-</body></html>
+<div class="email-content">
+    <p class="paragraph-3">
+        Bonjour <span style="font-weight: bold;">__USER_FIRSTNAME__</span>,<br><br>Bienvenue chez __PLACE_NAME__ !
+        <br>Ton
+        espace utilisateur est bien crée. Pour confirmer ta place, merci de valider un moyen de paiement pour le
+        prélèvement mensuel en cliquant sur ce bouton :</p>
+    __SPACER__
+    <a href="__LINK_PAYMENT__" style="__BUTTON_STYLE__">Valider le paiement récurrent</a>
+    __SPACER__
+    <p class="paragraph-2">Ce contrat est pour :<br>
+        <span style="font-weight: bold;">__USER_FIRSTNAME__ __USER_LASTNAME__<br>__USER_EMAIL__<br>__USER_PHONE__</span>
+    </p>
+    <div class="spacer"></div>
+    <p class="paragraph-2">À bientôt 👋</p>
+    <div class="spacer-40"></div>
+</div>

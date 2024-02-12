@@ -48,6 +48,24 @@ class MailService extends CoreService {
 			}
 		}
 
+		$result['__BUTTON_STYLE__'] = "-webkit-text-size-adjust: 100%; --white: white; --black: black;
+										font-family: Inter,sans-serif;
+										box-sizing: border-box;
+										color: #fff;
+										line-height: inherit;
+										cursor: pointer;
+										border: 0;
+										text-decoration: none;
+										display: inline-block;
+										text-align: left;
+										background-color: #146b76;
+										border-radius: 50px;
+										padding: 12px 24px;
+										font-size: 16px;
+										font-weight: 500;";
+
+		$result['__SPACER__'] = '<div style="height: 30px;"></div>';
+
 		return array_change_key_case($result, CASE_UPPER);
 	}
 
@@ -61,4 +79,14 @@ class MailService extends CoreService {
 
 		return $html;
     }
+
+	public function getWappedHTML(string $file, string $title, array $params)
+	{
+
+		return $this->getHTML('email.wrapper', [
+			'title' => $title,
+			'content' => $this->getHTML($file, $params)
+		]);
+
+	}
 }

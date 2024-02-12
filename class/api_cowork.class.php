@@ -90,12 +90,12 @@ class Cowork extends DolibarrApi
 
 			$mailService = MailService::make($db, $user);
 
-			$title = "Votre réservation pour le '{$placeData->name}' à été annulée";
+			$title = "Votre réservation pour {$placeData->name} à été annulée";
 
 			$dateStart = new \DateTime($reservation->dateStart, new \DateTimeZone("UTC"));
 			$dateEnd = new \DateTime($reservation->dateEnd, new \DateTimeZone("UTC"));
 
-			$body = $mailService->getHTML('email.reservation.cancel',  [
+			$body = $mailService->getWappedHTML('email.reservation.cancel', $title, [
 					'reservation'=>$reservation,
 					'user' => $userData,
 					'date' => $dateStart->format('d/m/Y'),
@@ -136,9 +136,9 @@ class Cowork extends DolibarrApi
 
 			$mailService = MailService::make($db, $user);
 
-			$title = "Votre accès à '{$placeData->name}'";
+			$title = "Votre accès {$placeData->name}";
 
-			$body = $mailService->getHTML('email.account.lost',  [
+			$body = $mailService->getWappedHTML('email.account.lost', $title, [
 					'user' => $userData,
 					'link' => $payload->link
 				]
@@ -176,9 +176,9 @@ class Cowork extends DolibarrApi
 
 			$mailService = MailService::make($db, $user);
 
-			$title = "Votre contrat à '{$placeData->name}'";
+			$title = "Votre contrat pour {$placeData->name}";
 
-			$body = $mailService->getHTML('email.contract', [
+			$body = $mailService->getWappedHTML('email.contract', $title, [
 					'contract' => $contractData,
 					'user' => $userData,
 					'place' => $placeData,
@@ -218,9 +218,9 @@ class Cowork extends DolibarrApi
 
 			$mailService = MailService::make($db, $user);
 
-			$title = "Une erreur s'est produite sur votre contrat à '{$placeData->name}'";
+			$title = "Une erreur s'est produite sur votre contrat {$placeData->name}";
 
-			$body = $mailService->getHTML('email.invoice.contract.error', [
+			$body = $mailService->getWappedHTML('email.invoice.contract.error', $title, [
 					'contract' =>$contractData,
 					'link_payment' => $payload->link_payment
 				]
@@ -233,6 +233,41 @@ class Cowork extends DolibarrApi
 
 
 		throw new RestException(403, 'Invalid call');
+
+	}
+
+	/**
+	 * @url GET /test/mail/{$template}
+	 *
+	 * @param string $template
+	 * @return string
+	 *
+	 * @throws RestException
+	 */
+	function testMail(string $template): string
+	{
+		global $conf, $db, $user;
+		dol_include_once('/cowork/service/MailService.php');
+		$mailService = MailService::make($db, $user);
+
+		$body = $mailService->getWappedHTML('email.'.$template, 'Ceci est mon titre' ,[
+				'contract' => [
+					''
+				],
+				'place'=> [
+					'name' => 'cowork',
+				],
+				'link_payment' => '#',
+				'user' => [
+					'firstname' => 'Prénom',
+					'lastname' => 'Nom',
+					'email' => 'me@yoh.fr',
+					'phone' => '+33 6 66 66 66 66',
+				]
+			]
+		);
+
+		exit($body);
 
 	}
 }

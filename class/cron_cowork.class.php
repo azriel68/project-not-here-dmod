@@ -108,18 +108,18 @@ class CronCowork {
 				$this->output.='basket '.$basket->id.PHP_EOL;
 				$invoice = $this->generateReservationInvoice($wallet, $body_details, $entity);
 
-				$title = "Votre réservation pour le '{$placeData->name}' à été confirmée";
+				$title = "Votre réservation pour {$placeData->name} à été confirmée";
 
 				$files = [];
 				if (null!==$invoice) {
 					$files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
-					$body = $mailService->getHTML('email.invoice.reservation', [
+					$body = $mailService->getWappedHTML('email.invoice.reservation', $title, [
 						'body_details' => implode("<br/>", $body_details),
 						'user' => $userData,
 					]);
 				}
 				else {
-					$body = $mailService->getHTML('email.reservation', [
+					$body = $mailService->getWappedHTML('email.reservation', $title,[
 						'body_details' => implode("<br/>", $body_details),
 						'user' => $userData,
 					]);
@@ -127,10 +127,10 @@ class CronCowork {
 
 			$mailService->sendMail($title, $body, $placeData->name.' <'. $entity->MAIN_INFO_SOCIETE_MAIL .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
 
-				$title = "Votre facture de contrat pour le '{$placeData->name}'";
+				$title = "Votre facture de contrat pour {$placeData->name}";
 
-				$body = $mailService->getHTML('email.invoice.contract', [
-					'body_details' => $body_details,
+				$body = $mailService->getWappedHTML('email.invoice.contract', $title, [
+					'body_details' => implode("<br/>", $body_details),
 					'user' => $userData,
 				]);
 
@@ -283,26 +283,41 @@ class CronCowork {
 
 	private function generateContractInvoice($wallet, &$body_details, $entity ): ?Facture
 	{
+		global $langs;
+
 		$contract = $wallet->contract;
 		$userData = $wallet->user;
 
 		$lines = [];
 		$descriptions = [];
-		$total = 0;
-		foreach($contract->desk as $desk) {
 
-			$days_string = 'todo';
+		$daysTrans = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+		foreach($contract->days as $wrapDay) {
+			$day = $wrapDay->day;
+			$desk = $wrapDay->desk;
+			$daysString = $langs->trans($daysTrans[$day]);
 
 			$descriptions[] = 'Salle '. $desk->room_name.($desk->reference ? ', bureau '.$desk->reference : '')
-				.' le '.$days_string;
+				.' le '.$daysString;
 
 			$body_details[] = 'Le <strong>bureau ".$desk->reference."</strong> dans la salle <strong>'. $desk->room_name.'</strong>
-					 le '.$days_string;
+					 le '.$daysString;
 		}
+
+		foreach($contract->points as $k=>$nb) {
+			if($nb > 0) {
+				$descriptions[] = $nb. ' point(s) '. $langs->trans('coworkType'. $k);
+
+				$body_details[] = $nb. ' point(s) '. $langs->trans('coworkType'. $k);
+
+			}
+		}
+
+
 
 		$vat_rate = $wallet->place->vat_rate; //TODO contract vat_rate
 		$lines[] = array_merge( (array)$contract, [
-			'description' => implode("\n\n", $descriptions),
+			'description' => implode(", ", $descriptions),
 			'subprice' => $contract->amount,
 			'tvatx' =>$vat_rate,
 			'price' => $contract->amount * (1 + ($vat_rate/ 100)),
@@ -364,9 +379,9 @@ class CronCowork {
 			$dateStart = new \DateTime($reservation->dateStart, new \DateTimeZone("UTC"));
 			$dateEnd = new \DateTime($reservation->dateEnd, new \DateTimeZone("UTC"));
 
-			$title = " Rappel : Vous avez une réservation au '{$place->name}' aujourd’hui !";
+			$title = " Rappel : Vous avez une réservation pour {$place->name} aujourd’hui !";
 
-			$body=$mailService->getHTML('email.reservation.today',  [
+			$body=$mailService->getWappedHTML('email.reservation.today', $title, [
 				'reservation'=>$reservation,
 				'link_door'=>$place->front_url.'bookings',
 				'user' => $userData,

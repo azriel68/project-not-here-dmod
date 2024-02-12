@@ -35,8 +35,8 @@ COWORK_IDTooltip=sur page de gestion de ce dernier sur DollyDesk
 COWORK_API_USER=Votre identififiant Administrateur DollyDesk
 COWORK_API_PASSWORD=Votre mot de passe DollyDesk
 
-coworkTypeSINGLE=Desk
-coworkTypeMEETING=Meeting
+coworkTypeSINGLE=Bureau
+coworkTypeMEETING=Réunion
 
 #
 # About page
