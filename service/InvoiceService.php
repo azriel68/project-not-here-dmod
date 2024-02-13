@@ -15,70 +15,70 @@ use Dolibarr\Core\CoreService;
 
 class InvoiceService extends CoreService {
 
-	public function create(array $data): \Facture
-	{
-		global $conf;
-		$this->db->begin();
+    public function create(array $data): \Facture
+    {
+        global $conf;
+        $this->db->begin();
 
-		$invoice = new \Facture($this->db);
-		$invoice->ref_ext = $data['ref_ext']; //TODO check if ref_ext already exist
-		$invoice->entity = $data['entity'];
-		$invoice->type = \Facture::TYPE_STANDARD;
-		$invoice->brouillon = 0;
-		$invoice->status = $invoice->statut = \Facture::STATUS_DRAFT;
-		$invoice->date = dol_now();
+        $invoice = new \Facture($this->db);
+        $invoice->ref_ext = $data['ref_ext']; //TODO check if ref_ext already exist
+        $invoice->entity = $data['entity'];
+        $invoice->type = \Facture::TYPE_STANDARD;
+        $invoice->brouillon = 0;
+        $invoice->status = $invoice->statut = \Facture::STATUS_DRAFT;
+        $invoice->date = dol_now();
 
-		$thirdpartyService = ThirdpartyService::make($this->db, $this->user);
+        $thirdpartyService = ThirdpartyService::make($this->db, $this->user);
 
-		$invoice->socid = ($thirdpartyService->updateOrcreate($data['thirdparty'], $invoice->entity))->id;
+        $invoice->socid = ($thirdpartyService->updateOrcreate($data['thirdparty'], $invoice->entity))->id;
 
-		if ($invoice->create($this->user)<0) {
-			throw new \Exception($invoice->error);
-		}
+        if ($invoice->create($this->user)<0) {
+            throw new \Exception($invoice->error);
+        }
 
-		$this->addLines($invoice, $data['lines']);
+        $this->addLines($invoice, $data['lines']);
 
-		if ($invoice->validate($this->user)<0) {
-			throw new \Exception('Invoice Validatation::'.$invoice->error);
-		}
-		//
+        if ($invoice->validate($this->user)<0) {
+            throw new \Exception('Invoice Validatation::'.$invoice->error);
+        }
+        //
 //		$payment = new \Paiement();
 //		$payment->link
 
 
 
-		$this->db->commit();
+        $this->db->commit();
 
-		return $invoice;
-	}
+        return $invoice;
+    }
 
-	private function addLines(\Facture $invoice, array $lines): void {
-		foreach($lines as $line) {
-			$res = $invoice->addline(
-				$line['description'],
-				$line['subprice'],
-				1,
-				$line['tvatx'],
-				0,
-				0,
-				0,
-				$line['remise_percent'] ?? 0,
-				$line['dateStart'] ?? '',
-				$line['dateEnd'] ?? '',
-				0,
-				0,
-				0,
-				'HT',
-				$line['price'],
-				\Product::TYPE_SERVICE,
-			);
+    private function addLines(\Facture $invoice, array $lines): void {
+        foreach($lines as $line) {
+            $res = $invoice->addline(
+                $line['description'],
+                $line['subprice'],
+                1,
+                $line['tvatx'],
+                0,
+                0,
+                0,
+                $line['remise_percent'] ?? 0,
+                $line['dateStart'] ?? '',
+                $line['dateEnd'] ?? '',
+                0,
+                0,
+                0,
+                'HT',
+                $line['price'],
+                \Product::TYPE_SERVICE,
+            );
 
-			if ($res<0) {
-				throw new \Exception('Invoice AddLine::'.$invoice->error);
-			}
+            if ($res<0) {
+                throw new \Exception('Invoice AddLine::'.$invoice->error);
+            }
 
-		}
-	}
+        }
+    }
 
 
 }
