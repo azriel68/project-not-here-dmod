@@ -1,9 +1,10 @@
 <?php
 
+use Dolibarr\Cowork\MailService;
 use Luracast\Restler\RestException;
 
 /**
- * API class for Worwork
+ * API class for Cowork
  *
  * @access protected
  * @class  DolibarrApiAccess {@requires user}
@@ -36,7 +37,7 @@ class Cowork extends DolibarrApi
 	 * @param int $entity basket's id to pay
 	 * @return string link
 	 *
-	 * @url     GET /invoice/download/{entity}/{ref}
+	 * @url GET /invoice/download/{entity}/{ref}
 	 *
 	 * @throws RestException
 	 */
@@ -69,13 +70,13 @@ class Cowork extends DolibarrApi
 	}
 
 	/**
-	 * @return bool
+	 * @return string
 	 *
-	 * @url     POST /reservation/cancel/mail
+	 * @url POST /reservation/cancel/mail
 	 *
 	 * @throws RestException
 	 */
-	function cancelEmail(): bool
+	function cancelEmail(): string
 	{
 		global $conf, $db, $user;
 
@@ -84,20 +85,10 @@ class Cowork extends DolibarrApi
 		if (null !== $reservation) {
 			dol_include_once('/cowork/service/MailService.php');
 
-//			'id' => $this->reservation->getId(),
-//            'price' => $this->reservation->getPrice(),
-//            'points' => $this->reservation->getPoints(),
-//            'dateStart' => $this->reservation->getDateStart(),
-//            'dateEnd' => $this->reservation->getDateEnd(),
-//            'roomName' => $this->reservation->getRoomName(),
-//            'deskReference' => $this->reservation->getDeskReference(),
-//            'user' => new UserPresenter($this->reservation->getBasket()->getUser()),
-//            'place' => new CoworkPresenter($this->reservation->getPlace())
-
 			$placeData = $reservation->place;
 			$userData = $reservation->user;
 
-			$mailService = \Dolibarr\Cowork\MailService::make($db, $user);
+			$mailService = MailService::make($db, $user);
 
 			$title = "Votre réservation pour le '{$placeData->name}' à été annulée";
 
@@ -122,10 +113,63 @@ class Cowork extends DolibarrApi
 				À bientôt 👋<br /></p>
 				</body></html>";
 
-			$mailService->sendMail($title, $body, $placeData->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', [], true);
+			$mailService->sendMail($title, $body, 'DollyDesk <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', [], true);
 
 
-			return true;
+			return 'ok';
+		}
+
+
+		throw new RestException(403, 'Invalid call');
+
+	}
+
+	/**
+	 * @return string
+	 *
+	 * @url POST /account/lost
+	 *
+	 * @throws RestException
+	 */
+	function lostAccountEmail(): string
+	{
+		global $conf, $db, $user;
+
+		$payload_string = @file_get_contents('php://input');
+		$payload = json_decode($payload_string);
+		if (null !== $payload) {
+			dol_include_once('/cowork/service/MailService.php');
+
+			$placeData = $payload->place;
+			$userData = $payload->user;
+
+			$mailService = MailService::make($db, $user);
+
+			$title = "Votre accès à '{$placeData->name}'";
+
+			//list($_, $code) = explode('/token/', $payload->link);
+
+			$body = "<html><body>
+Bonjour {$userData->firstname}, <br />
+<p>Merci de Copier ce lien dans votre navigateur pour vous authentifier
+<br /><br />
+
+{$payload->link}
+
+<br /><br /><br />
+Puis modifiez votre mot de passe DollyDesk
+";
+
+			$body.= "</p>
+
+                                <p>
+                                <br />
+                                À bientôt 👋<br /></p>
+                                </body></html>";
+
+			$mailService->sendMail($title, $body, 'DollyDesk <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', [], true);
+
+			return 'ok';
 		}
 
 
