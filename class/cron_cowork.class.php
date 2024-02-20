@@ -21,6 +21,11 @@ class CronCowork {
     {
         global $conf, $db, $user;
 
+		if (!class_exists('DaoMulticompany')) {
+			$this->errors[] = 'Require DaoMulticompany';
+			return -1;
+		}
+
         $apiCoworkService = new \Dolibarr\Cowork\ApiCoworkService();
         $apiCoworkService->fetchUser();
         if (empty($apiCoworkService->user)) {
@@ -154,6 +159,11 @@ class CronCowork {
 
     private function initEntities(): void {
         global $db;
+
+		if (!class_exists('DaoMulticompany')) {
+			return;
+		}
+
         $sql = "SELECT value, entity FROM ".MAIN_DB_PREFIX."const WHERE name='COWORK_ID'";
         $result = $db->query($sql);
 
@@ -171,7 +181,7 @@ class CronCowork {
 
     }
 
-    private function getEntityToSwitch(string $coworkId): null|DaoMulticompany|stdClass
+    private function getEntityToSwitch(string $coworkId): mixed
     {
 
         if (!class_exists('DaoMulticompany')) {
@@ -179,7 +189,6 @@ class CronCowork {
             $r->id = 1;
             return $r;
         }
-
 
         if (empty($this->coworkEntities)) {
             $this->initEntities();
@@ -240,7 +249,7 @@ class CronCowork {
                 ]
             ),
             'lines' => $lines,
-            'payment_id' => $wallet->paymentId ?? 'prepaid_contract',
+            'payment_id' => substr( $wallet->paymentId, 0 , 30) ?? 'prepaid_contract',
         ]);
 
         return $invoice;
@@ -341,7 +350,7 @@ class CronCowork {
                 ]
             ),
             'lines' => $lines,
-            'payment_id' => $wallet->paymentId ?? 'prepaid_contract',
+            'payment_id' => substr( $wallet->paymentId,0,30) ?? 'prepaid_contract',
         ]);
 
         return $invoice;
