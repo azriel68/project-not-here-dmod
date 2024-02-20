@@ -8,30 +8,42 @@ class ApiCoworkService {
     public function __construct()
     {
     }
+	private function getClient($url, $type = 'GET', $data = []): \CurlHandle {
+		global $conf;
 
+		$curl = curl_init();
+
+		$headers = [
+			'Content-Type: application/json',
+			'Coworkid: '.$conf->global->COWORK_ID,
+		];
+
+		if (!empty($this->user->token)) {
+			$headers[] = 'Authorization: Bearer '.$this->user->token;
+		}
+
+		curl_setopt_array($curl, array(
+			CURLOPT_URL =>  $conf->global->COWORK_API_HOST . $url,
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_ENCODING => '',
+			CURLOPT_MAXREDIRS => 10,
+			CURLOPT_TIMEOUT => 0,
+			CURLOPT_FOLLOWLOCATION => true,
+			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			CURLOPT_CUSTOMREQUEST => $type,
+			CURLOPT_POSTFIELDS => json_encode($data),
+			CURLOPT_HTTPHEADER => $headers,
+		));
+
+		return $curl;
+	}
     public function fetchUser(): void {
         global $conf;
 
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array( //TODO factorize curl
-            CURLOPT_URL => $conf->global->COWORK_API_HOST . '/login',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => json_encode([
-                'email' => $conf->global->COWORK_API_USER,
-                'password' => $conf->global->COWORK_API_PASSWORD,
-            ]),
-            CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/json',
-                'Coworkid: '.$conf->global->COWORK_ID
-            ),
-        ));
+        $curl = $this->getClient( '/login', 'POST', [
+			'email' => $conf->global->COWORK_API_USER,
+			'password' => $conf->global->COWORK_API_PASSWORD,
+		]);
 
         $user_string = curl_exec($curl);
 
@@ -40,25 +52,9 @@ class ApiCoworkService {
     }
 
     public function getPaymentsPayed(): array {
-        global $conf;
 
         try {
-            $curl = curl_init();
-            curl_setopt_array($curl, array(
-                CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/payments/payed',
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => '',
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 0,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_CUSTOMREQUEST => 'GET',
-                CURLOPT_HTTPHEADER => array(
-                    'Authorization: Bearer '.$this->user->token,
-                    'Coworkid: '.$conf->global->COWORK_ID
-                ),
-            ));
-
+			$curl = $this->getClient('/admin/payments/payed');
             $json = curl_exec($curl);
 
             curl_close($curl);
@@ -73,27 +69,11 @@ class ApiCoworkService {
     }
 
     public function setInvoiceRef($paymentId, $invoiceRef, $filepath): mixed {
-        global $conf;
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/payment/billed/'.$paymentId,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => json_encode([
-                'invoice_path'=>$filepath,
-                'invoice_ref' =>$invoiceRef,
-            ]),
-            CURLOPT_HTTPHEADER => array(
-                'Authorization: Bearer '.$this->user->token,
-                'Coworkid: '.$conf->global->COWORK_ID
 
-            ),
-        ));
+		$curl = $this->getClient('/admin/payment/billed/'.$paymentId, 'POST', [
+			'invoice_path'=>$filepath,
+			'invoice_ref' =>$invoiceRef,
+		]);
 
         $json = curl_exec($curl);
         return json_decode($json);
@@ -102,21 +82,7 @@ class ApiCoworkService {
     public function getTodayReservations(): array {
         global $conf;
 
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/place/reservations/today',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'GET',
-            CURLOPT_HTTPHEADER => array(
-                'Authorization: Bearer '.$this->user->token,
-                'Coworkid: '.$conf->global->COWORK_ID
-            ),
-        ));
+		$curl = $this->getClient('/admin/place/reservations/today');
 
         $json = curl_exec($curl);
 
@@ -129,22 +95,7 @@ class ApiCoworkService {
     {
         global $conf;
 
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $conf->global->COWORK_API_HOST.'/superadmin/places',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'GET',
-            CURLOPT_HTTPHEADER => array(
-                'Authorization: Bearer '.$this->user->token,
-                'Coworkid: '.$conf->global->COWORK_ID
-
-            ),
-        ));
+		$curl = $this->getClient('/superadmin/places');
 
         $json = curl_exec($curl);
 
@@ -156,21 +107,7 @@ class ApiCoworkService {
     public function getContractsWithAmount(): array {
         global $conf;
 
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $conf->global->COWORK_API_HOST.'/admin/contracts/billing',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'GET',
-            CURLOPT_HTTPHEADER => array(
-                'Authorization: Bearer '.$this->user->token,
-                'Coworkid: '.$conf->global->COWORK_ID
-            ),
-        ));
+		$curl = $this->getClient('/admin/contracts/billing');
 
         $json = curl_exec($curl);
 
