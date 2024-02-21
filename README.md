@@ -1,5 +1,7 @@
 # COWORK DOLLYDESK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+clone to /cowork directory
+
 ## Features
 
 Module pour [Dollydesk.com](https://www.dollydesk.com/)
