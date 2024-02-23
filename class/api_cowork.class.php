@@ -92,8 +92,8 @@ class Cowork extends DolibarrApi
 
             $title = "Votre réservation pour {$placeData->name} à été annulée";
 
-            $dateStart = new \DateTime($reservation->dateStart, new \DateTimeZone("UTC"));
-            $dateEnd = new \DateTime($reservation->dateEnd, new \DateTimeZone("UTC"));
+            $dateStart = new \DateTime($reservation->dateStart->date, new \DateTimeZone("UTC"));
+            $dateEnd = new \DateTime($reservation->dateEnd->date, new \DateTimeZone("UTC"));
 
             $body = $mailService->getWappedHTML('email.reservation.cancel', $title, [
                     'reservation' => $reservation,
@@ -237,7 +237,7 @@ class Cowork extends DolibarrApi
     }
 
     /**
-     * @url GET /test/mail/{$template}
+     * @url GET /test/mail/{template}
      *
      * @param string $template
      * @return string
