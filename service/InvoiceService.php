@@ -20,8 +20,14 @@ class InvoiceService extends CoreService {
         global $conf;
         $this->db->begin();
 
-        $invoice = new \Facture($this->db);
-        $invoice->ref_ext = $data['ref_ext']; //TODO check if ref_ext already exist
+		$invoice = new \Facture($this->db);
+
+		$invoice->fetch(0, '', $data['ref_ext']); //for obscur reason (and surely a middle bug, the invoice already exist)
+		if ($invoice->id > 0) {
+			return $invoice;
+		}
+
+		$invoice->ref_ext = $data['ref_ext']; //TODO check if ref_ext already exist
         $invoice->entity = $data['entity'];
         $invoice->type = \Facture::TYPE_STANDARD;
         $invoice->brouillon = 0;
