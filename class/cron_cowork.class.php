@@ -268,7 +268,7 @@ class CronCowork {
         $invoice = $invoiceService->create($data);
         $this->output .= ' invoice -> '. $invoice->ref;
 
-        if ($invoice->total_ht>0) {
+        if ($invoice->getRemainToPay()>0 ) {
             $paymentService->createFromInvoice($invoice,  $data['payment_id']);
         }
         else {

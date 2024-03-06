@@ -105,6 +105,8 @@ $item = $formSetup->newItem('COWORK_API_USER');
 $item->defaultFieldValue = '';
 $item = $formSetup->newItem('COWORK_API_PASSWORD');
 $item->defaultFieldValue = '';
+$item = $formSetup->newItem('COWORK_ACCOUNT_REF');
+$item->defaultFieldValue = 'STRIPE';
 
 $setupnotempty += count($formSetup->items);
 

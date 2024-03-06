@@ -34,6 +34,7 @@ COWORK_ID=L'identifiant unique de votre Cowork
 COWORK_IDTooltip=sur page de gestion de ce dernier sur DollyDesk
 COWORK_API_USER=Votre identififiant Administrateur DollyDesk
 COWORK_API_PASSWORD=Votre mot de passe DollyDesk
+COWORK_ACCOUNT_REF=Référence du compte bancaire où stocker les paiements (sera créé si inexistant)
 
 coworkTypeSINGLE=Bureau
 coworkTypeMEETING=Réunion
