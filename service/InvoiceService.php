@@ -47,11 +47,6 @@ class InvoiceService extends CoreService {
         if ($invoice->validate($this->user)<0) {
             throw new \Exception('Invoice Validatation::'.$invoice->error);
         }
-        //
-//		$payment = new \Paiement();
-//		$payment->link
-
-
 
         $this->db->commit();
 

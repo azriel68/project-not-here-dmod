@@ -8,7 +8,7 @@ class ApiCoworkService {
     public function __construct()
     {
     }
-	private function getClient($url, $type = 'GET', $data = []): \CurlHandle {
+	private function getClient($url, $type = 'GET', $data = []) {
 		global $conf;
 
 		$curl = curl_init();
@@ -68,7 +68,7 @@ class ApiCoworkService {
         }
     }
 
-    public function setInvoiceRef($paymentId, $invoiceRef, $filepath): mixed {
+    public function setInvoiceRef($paymentId, $invoiceRef, $filepath) {
 
 		$curl = $this->getClient('/admin/payment/billed/'.$paymentId, 'POST', [
 			'invoice_path'=>$filepath,

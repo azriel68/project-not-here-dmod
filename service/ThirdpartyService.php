@@ -15,7 +15,7 @@ class ThirdpartyService extends CoreService {
 
 		$societe = new \Societe($this->db);
 
-		$societe->fetch( rowid: 0, email: $data['email']);
+		$societe->fetch(0, '', '', '', '','', '', '', '','',$data['email']);
 		$societe->ref_ext = $data['ref_ext'];
 		$societe->name = $data['name'];
 		$societe->client = 1;

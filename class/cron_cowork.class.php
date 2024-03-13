@@ -53,7 +53,7 @@ class CronCowork {
 
                 $this->output .= 'Create entity '.$dao->label.' '.$dao->id."\n";
 
-                dolibarr_set_const($db, 'COWORK_ID', $place->id, entity: $dao->id);
+                dolibarr_set_const($db, 'COWORK_ID', $place->id, 'chaine', 0, '', $dao->id);
             }
         }
 
@@ -181,7 +181,7 @@ class CronCowork {
 
     }
 
-    private function getEntityToSwitch(string $coworkId): mixed
+    private function getEntityToSwitch(string $coworkId)
     {
 
         if (!class_exists('DaoMulticompany')) {
@@ -409,7 +409,7 @@ class CronCowork {
                 ]
             );
 
-            $mailService->sendMail($title, $body, $place->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->email, isHtml: true);
+            $mailService->sendMail($title, $body, $place->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->email, [], true);
         }
 
         return 0;

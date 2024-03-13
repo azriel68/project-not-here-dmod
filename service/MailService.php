@@ -26,8 +26,10 @@ class MailService extends CoreService {
             $filename[] = $file->name;
         }
 
-//var_dump($subject, $to, $from, $message, $filepath, $mimetype, $filename);exit;
-        @		$mailFile = new \CMailFile($subject, $to, $from, $message, $filepath, $mimetype, $filename, msgishtml: (int)$isHtml, trackid: md5($to.$subject.$message), replyto: $from);
+        @		$mailFile = new \CMailFile($subject, $to, $from, $message, $filepath, $mimetype, $filename,
+							'', '', 0, (int)$isHtml,
+							'', '', md5($to.$subject.$message),
+			     			'', 'standard', $from);
 
         if (false === $mailFile->sendfile()) {
             throw new \Exception('Unable to send mail ['.$subject.'] to '.$to.' from '.$from);
@@ -36,7 +38,7 @@ class MailService extends CoreService {
         return true;
     }
 
-    private function getReplacements(mixed $params, string $prepend = '') :array
+    private function getReplacements($params, string $prepend = '') :array
     {
         $result = [];
         foreach($params as $key => $value) {
@@ -44,7 +46,7 @@ class MailService extends CoreService {
                 $result = array_merge($result, $this->getReplacements($value, $key.'_'));
             }
             else {
-                $result['__'.$prepend.$key.'__'] = $value;
+                $result['__'.$prepend.$key.'__'] = "$value";
             }
         }
 
