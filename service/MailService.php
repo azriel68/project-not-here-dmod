@@ -80,7 +80,7 @@ class MailService extends CoreService {
         return $html;
     }
 
-    public function getWappedHTML(string $file, string $title, array $params)
+    public function getWappedHTML(string $file, string $title, array $params): string
     {
 
         return $this->getHTML('email.wrapper', [

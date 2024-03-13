@@ -146,8 +146,8 @@ class modCowork extends DolibarrModules
 		$this->langfiles = array("cowork@cowork");
 
 		// Prerequisites
-		$this->phpmin = array(7, 0); // Minimum version of PHP required by module
-		$this->need_dolibarr_version = array(11, -3); // Minimum version of Dolibarr required by module
+		$this->phpmin = array(8, 1); // Minimum version of PHP required by module
+		$this->need_dolibarr_version = array(18, 0); // Minimum version of Dolibarr required by module
 		$this->need_javascript_ajax = 0;
 
 		// Messages at activation
