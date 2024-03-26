@@ -298,7 +298,10 @@ class CronCowork {
 
         $daysTrans = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-        foreach($contract->days as $day=>$deskId) {
+		$dateStart = new \DateTime($wallet->dateStart, new \DateTimeZone("UTC"));
+		$dateEnd = new \DateTime($wallet->dateEnd, new \DateTimeZone("UTC"));
+
+		foreach($contract->days as $day=>$deskId) {
             $desk = null;
             if (empty($desk) || $desk->id !== $deskId) {
                 foreach($contract->desks as $desk) {
@@ -335,7 +338,10 @@ class CronCowork {
             'tvatx' =>$vat_rate,
             'price' => $contract->amount * (1 + ($vat_rate/ 100)),
             'remise_percent' => $contract->discount_percent,
-        ]);
+			'dateStart' => $dateStart->getTimestamp(),
+			'dateEnd' => $dateEnd->getTimestamp(),
+
+		]);
 
         if ($contract->amount === 0) {
             return null;
