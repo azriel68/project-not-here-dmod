@@ -270,4 +270,40 @@ class Cowork extends DolibarrApi
         exit($body);
 
     }
+
+	/**
+	 * @url POST /test/mail/{template}
+	 *
+	 * @param string $template
+	 * @return string
+	 *
+	 * @throws RestException
+	 */
+	function testSendMail(string $template): string
+	{
+		global $conf, $db, $user;
+		dol_include_once('/cowork/service/MailService.php');
+		$mailService = MailService::make($db, $user);
+		$subject = 'Ceci est mon titre';
+		$body = $mailService->getWappedHTML('email.' . $template, $subject, [
+				'contract' => [
+					'discounted_amount' => 99
+				],
+				'place' => [
+					'name' => 'cowork',
+				],
+				'link_payment' => '#',
+				'user' => [
+					'firstname' => 'Prénom',
+					'lastname' => 'Nom',
+					'email' => 'me@yoh.fr',
+					'phone' => '+33 6 66 66 66 66',
+				]
+			]
+		);
+
+		$mailService->sendMail($subject, $body,'DollyDesk Test <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $user->firstname.' '.$user->lastname.' <'. $user->email.'>' );
+
+		return 1;
+	}
 }
