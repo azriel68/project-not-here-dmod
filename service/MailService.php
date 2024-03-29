@@ -16,7 +16,7 @@ class MailService extends CoreService {
      * @param array<MailFile> $files
      * @return bool|string
      */
-    public function sendMail(string $subject, string $message, string $from, string $to, array $files = [], $isHtml = false): bool
+    public function sendMail(string $subject, string $message, string $from, string $to, string $cci = '', array $files = [], $isHtml = false): bool
     {
 
         $filepath = $mimetype = $filename = [];
@@ -27,7 +27,7 @@ class MailService extends CoreService {
         }
 
         @		$mailFile = new \CMailFile($subject, $to, $from, $message, $filepath, $mimetype, $filename,
-							'', '', 0, (int)$isHtml,
+							'', $cci, 0, (int)$isHtml,
 							'', '', md5($to.$subject.$message),
 			     			'', 'standard', $from);
 

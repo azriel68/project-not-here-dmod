@@ -101,6 +101,7 @@ class CronCowork {
 				$body = null;
 				$invoice = null;
 
+				$files = [];
 				if (!empty($basket)) {
 
 					$this->output.='basket '.$basket->id.PHP_EOL;
@@ -108,20 +109,19 @@ class CronCowork {
 
 					$title = "Votre réservation pour {$placeData->name} à été confirmée";
 
-					$files = [];
-					if (null!==$invoice) {
-						$files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
-						$body = $mailService->getWappedHTML('email.invoice.reservation', $title, [
-							'body_details' => implode("<br/>", $body_details),
-							'user' => $userData,
-						]);
-					}
-					else {
-						$body = $mailService->getWappedHTML('email.reservation', $title,[
-							'body_details' => implode("<br/>", $body_details),
-							'user' => $userData,
-						]);
-					}
+                     if (null!==$invoice) {
+                        $files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
+                        $body = $mailService->getWappedHTML('email.invoice.reservation', $title, [
+                            'body_details' => implode("<br/>", $body_details),
+                            'user' => $userData,
+                        ]);
+                    }
+                    else {
+                        $body = $mailService->getWappedHTML('email.reservation', $title,[
+                            'body_details' => implode("<br/>", $body_details),
+                            'user' => $userData,
+                        ]);
+                    }
 
 				}
 				else if (!empty($contract)) {
@@ -135,16 +135,14 @@ class CronCowork {
 						'user' => $userData,
 					]);
 
+                    if (null!==$invoice) {
+                        $files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
+                    }
+                }
 
-					$files = [];
-					if (null!==$invoice) {
-						$files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
-					}
-				}
-
-				if (!empty($body)) {
-					$mailService->sendMail($title, $body, $placeData->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
-				}
+                if (!empty($body)) {
+                    $mailService->sendMail($title, $body, $placeData->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $placeData->emails_cci ?? '', $files, true);
+                }
 
 				$apiCoworkService->setInvoiceRef($wallet->id, null===$invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '');
 
@@ -411,7 +409,7 @@ class CronCowork {
                 ]
             );
 
-            $mailService->sendMail($title, $body, $place->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->email, [], true);
+            $mailService->sendMail($title, $body, $place->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->email, $place->emails_cci ?? '' , [], true);
         }
 
         return 0;
