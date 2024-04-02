@@ -49,12 +49,28 @@ class CronCowork {
                 $dao->label = $place->name;
                 $dao->visible = 1;
                 $dao->active = 1;
+
                 $dao->create($user);
 
                 $this->output .= 'Create entity '.$dao->label.' '.$dao->id."\n";
 
                 dolibarr_set_const($db, 'COWORK_ID', $place->id, 'chaine', 0, '', $dao->id);
             }
+			else { // update
+				$dao = new DaoMulticompany($db);
+				$dao->fetch($this->coworkEntities[$place->id]);
+				$dao->name = $place->invoice_companyName ;
+				$dao->address = $place->invoice_address;
+				$dao->zip = $place->invoice_zip;
+				$dao->town = $place->invoice_city;
+				$dao->update($dao->id, $user);
+				dolibarr_set_const($db, 'MAIN_INFO_SOCIETE_TEL', $place->invoice_phone, 'chaine', 0, '', $dao->id);
+				dolibarr_set_const($db, 'MAIN_INFO_SOCIETE_MAIL', $place->invoice_email, 'chaine', 0, '', $dao->id);
+				dolibarr_set_const($db, 'MAIN_INFO_TVAINTRA', $place->invoice_vatCode, 'chaine', 0, '', $dao->id);
+				dolibarr_set_const($db, 'MAIN_INFO_SIRET', $place->invoice_siret, 'invoice_siret', 0, '', $dao->id);
+				dolibarr_set_const($db, 'MAIN_INFO_SIREN', substr($place->invoice_siret,0,9), 'invoice_siret', 0, '', $dao->id);
+				
+			}
         }
 
 
