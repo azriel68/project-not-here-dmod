@@ -104,7 +104,10 @@ class Cowork extends DolibarrApi
                 ]
             );
 
-            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>', $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>', $placeData->emails_cci ?? '', [], true);
+            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>',
+				$userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>',
+				'',
+				$placeData->emails_cci ?? '', [], true);
 
 
             return 'ok';
@@ -144,7 +147,10 @@ class Cowork extends DolibarrApi
                 ]
             );
 
-            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>', $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>', $placeData->emails_cci ?? '', [], true);
+            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>',
+				$userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>',
+				'',
+				$placeData->emails_cci ?? '', [], true);
 
             return 'ok';
         }
@@ -186,7 +192,10 @@ class Cowork extends DolibarrApi
                 ]
             );
 
-            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>', $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>', $placeData->emails_cci ?? '', [], true);
+            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>',
+				$userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>',
+				$userData->accounting_email,
+				$placeData->emails_cci ?? '', [], true);
 
             return 'ok';
         }
@@ -226,7 +235,10 @@ class Cowork extends DolibarrApi
                 ]
             );
 
-            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>', $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>', $placeData->emails_cci ?? '', [], true);
+            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>',
+				$userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>',
+				$userData->accounting_email,
+				$placeData->emails_cci ?? '', [], true);
 
             return 'ok';
         }
@@ -302,7 +314,8 @@ class Cowork extends DolibarrApi
 			]
 		);
 
-		$mailService->sendMail($subject, $body,'DollyDesk Test <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $user->firstname.' '.$user->lastname.' <'. $user->email.'>' );
+		$mailService->sendMail($subject, $body,'DollyDesk Test <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>',
+			$user->firstname.' '.$user->lastname.' <'. $user->email.'>' );
 
 		return 1;
 	}

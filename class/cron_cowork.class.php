@@ -52,6 +52,7 @@ class CronCowork {
 
                 $dao->create($user);
 
+
                 $this->output .= 'Create entity '.$dao->label.' '.$dao->id."\n";
 
                 dolibarr_set_const($db, 'COWORK_ID', $place->id, 'chaine', 0, '', $dao->id);
@@ -157,7 +158,11 @@ class CronCowork {
                 }
 
                 if (!empty($body)) {
-                    $mailService->sendMail($title, $body, $placeData->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $placeData->emails_cci ?? '', $files, true);
+					$mailService->sendMail($title, $body,
+						$placeData->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>',
+						$userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>',
+						$userData->accounting_email,
+						$placeData->emails_cci ?? '', $files, true);
                 }
 
 				$apiCoworkService->setInvoiceRef($wallet->id, null===$invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '');
@@ -236,7 +241,7 @@ class CronCowork {
             $dateEnd = new \DateTime($reservation->dateEnd, new \DateTimeZone("UTC"));
 
             $description = 'Salle '. $reservation->roomName.($reservation->deskReference ? ', bureau '.$reservation->deskReference : '')
-                .' du '.$dateStart->format('d/m/Y H:i').' à '.$dateEnd->format('H:i');
+                .' le '.$dateStart->format('d/m/Y').' de '.$dateStart->format('H:i').' à '.$dateEnd->format('H:i');
             $lines[] = array_merge( (array)$reservation, [
                 'description' => $description,
                 'dateStart' => $dateStart->getTimestamp(),
@@ -425,7 +430,10 @@ class CronCowork {
                 ]
             );
 
-            $mailService->sendMail($title, $body, $place->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->email, $place->emails_cci ?? '' , [], true);
+            $mailService->sendMail($title, $body, $place->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>',
+				$userData->email,
+				'',
+				$place->emails_cci ?? '' , [], true);
         }
 
         return 0;
