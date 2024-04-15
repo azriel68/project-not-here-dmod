@@ -93,7 +93,7 @@ class CronCowork {
 
 				$entity = $this->getEntityToSwitch($placeData->id);
 				if (null === $entity) {
-					$this->output .= ' (no managed) ';
+					$this->output .= ' ('.$placeData->id.' no managed) ';
 					continue; // not a managed entity
 				}
 
@@ -151,7 +151,8 @@ class CronCowork {
 			}
 			catch (Exception $exception) {
 				var_dump($exception);
-				$this->output.='Exception '.$wallet->id.' '.$exception->getMessage();
+				$this->errors[] = 'Exception '.$wallet->id.' '.$exception->getMessage();
+				$this->output.='Exception '.$wallet->id;
 			}
 		}
 

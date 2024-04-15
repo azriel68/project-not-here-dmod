@@ -104,7 +104,7 @@ class Cowork extends DolibarrApi
                 ]
             );
 
-            $mailService->sendMail($title, $body, 'DollyDesk <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>', $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>', [], true);
+            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>', $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>', [], true);
 
 
             return 'ok';
@@ -144,7 +144,7 @@ class Cowork extends DolibarrApi
                 ]
             );
 
-            $mailService->sendMail($title, $body, 'DollyDesk <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>', $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>', [], true);
+            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>', $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>', [], true);
 
             return 'ok';
         }
@@ -186,7 +186,7 @@ class Cowork extends DolibarrApi
                 ]
             );
 
-            $mailService->sendMail($title, $body, 'DollyDesk <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>', $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>', [], true);
+            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>', $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>', [], true);
 
             return 'ok';
         }
@@ -226,7 +226,7 @@ class Cowork extends DolibarrApi
                 ]
             );
 
-            $mailService->sendMail($title, $body, 'DollyDesk <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>', $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>', [], true);
+            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>', $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>', [], true);
 
             return 'ok';
         }
