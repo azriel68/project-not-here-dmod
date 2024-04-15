@@ -38,6 +38,7 @@ COWORK_ACCOUNT_REF=Référence du compte bancaire où stocker les paiements (ser
 
 coworkTypeSINGLE=Bureau
 coworkTypeMEETING=Réunion
+TestInvoices=Générer les factures
 
 #
 # About page

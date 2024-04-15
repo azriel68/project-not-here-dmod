@@ -125,7 +125,18 @@ if ( versioncompare(explode('.', DOL_VERSION), array(15)) < 0 && $action == 'upd
 
 include DOL_DOCUMENT_ROOT.'/core/actions_setmoduleoptions.inc.php';
 
-if ($action == 'updateMask') {
+if ($action === 'test-invoices') {
+		dol_include_once('/cowork/class/cron_cowork.class.php');
+		$cron = new CronCowork();
+		$res = $cron->createSpotBills();
+		if ($res < 0) {
+			setEventMessages(implode(', ', $cron->errors), null, 'errors');
+		}
+		else {
+			setEventMessages($cron->output, null, 'warning');
+		}
+
+} else if ($action == 'updateMask') {
 	$maskconst = GETPOST('maskconst', 'aZ09');
 	$maskvalue = GETPOST('maskvalue', 'alpha');
 
@@ -254,6 +265,10 @@ if ($action == 'edit') {
 } elseif (!empty($formSetup->items)) {
 	print $formSetup->generateOutput();
 	print '<div class="tabsAction">';
+	if (!empty($conf->global->COWORK_API_HOST) && !empty($conf->global->COWORK_ID) && !empty($conf->global->COWORK_API_USER) && !empty($conf->global->COWORK_API_PASSWORD)) {
+		print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?action=test-invoices&token='.newToken().'">'.$langs->trans("TestInvoices").'</a>';
+
+	}
 	print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?action=edit&token='.newToken().'">'.$langs->trans("Modify").'</a>';
 	print '</div>';
 } else {

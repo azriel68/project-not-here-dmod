@@ -84,75 +84,76 @@ class CronCowork {
 
         $this->output = '';
 
-        try {
-            foreach($data as $wallet) {
-                $basket = $wallet->basket;
-                $contract = $wallet->contract;
-                $userData = $wallet->user;
-                $placeData = $wallet->place;
+		foreach($data as $wallet) {
+			try {
+				$basket = $wallet->basket;
+				$contract = $wallet->contract;
+				$userData = $wallet->user;
+				$placeData = $wallet->place;
 
-                $entity = $this->getEntityToSwitch($placeData->id);
-                if (null === $entity) {
-                    $this->output .= ' (no managed) ';
-                    continue; // not a managed entity
-                }
+				$entity = $this->getEntityToSwitch($placeData->id);
+				if (null === $entity) {
+					$this->output .= ' (no managed) ';
+					continue; // not a managed entity
+				}
 
-                $body_details = [];
-                $body = null;
-                $invoice = null;
+				$body_details = [];
+				$body = null;
+				$invoice = null;
 
-                if (!empty($basket)) {
+				if (!empty($basket)) {
 
-                    $this->output.='basket '.$basket->id.PHP_EOL;
-                    $invoice = $this->generateReservationInvoice($wallet, $body_details, $entity);
+					$this->output.='basket '.$basket->id.PHP_EOL;
+					$invoice = $this->generateReservationInvoice($wallet, $body_details, $entity);
 
-                    $title = "Votre réservation pour {$placeData->name} à été confirmée";
+					$title = "Votre réservation pour {$placeData->name} à été confirmée";
 
-                    $files = [];
-                    if (null!==$invoice) {
-                        $files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
-                        $body = $mailService->getWappedHTML('email.invoice.reservation', $title, [
-                            'body_details' => implode("<br/>", $body_details),
-                            'user' => $userData,
-                        ]);
-                    }
-                    else {
-                        $body = $mailService->getWappedHTML('email.reservation', $title,[
-                            'body_details' => implode("<br/>", $body_details),
-                            'user' => $userData,
-                        ]);
-                    }
+					$files = [];
+					if (null!==$invoice) {
+						$files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
+						$body = $mailService->getWappedHTML('email.invoice.reservation', $title, [
+							'body_details' => implode("<br/>", $body_details),
+							'user' => $userData,
+						]);
+					}
+					else {
+						$body = $mailService->getWappedHTML('email.reservation', $title,[
+							'body_details' => implode("<br/>", $body_details),
+							'user' => $userData,
+						]);
+					}
 
-                }
-                else if (!empty($contract)) {
-                    $this->output.='contract '.$contract->id.PHP_EOL;
-                    $invoice = $this->generateContractInvoice($wallet, $body_details, $entity);
+				}
+				else if (!empty($contract)) {
+					$this->output.='contract '.$contract->id.PHP_EOL;
+					$invoice = $this->generateContractInvoice($wallet, $body_details, $entity);
 
-                    $title = "Votre facture de contrat pour {$placeData->name}";
+					$title = "Votre facture de contrat pour {$placeData->name}";
 
-                    $body = $mailService->getWappedHTML('email.invoice.contract', $title, [
-                        'body_details' => implode("<br/>", $body_details),
-                        'user' => $userData,
-                    ]);
+					$body = $mailService->getWappedHTML('email.invoice.contract', $title, [
+						'body_details' => implode("<br/>", $body_details),
+						'user' => $userData,
+					]);
 
 
-                    $files = [];
-                    if (null!==$invoice) {
-                        $files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
-                    }
-                }
+					$files = [];
+					if (null!==$invoice) {
+						$files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);
+					}
+				}
 
-                if (!empty($body)) {
-                    $mailService->sendMail($title, $body, $placeData->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
-                }
+				if (!empty($body)) {
+					$mailService->sendMail($title, $body, $placeData->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>', $userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>', $files, true);
+				}
 
-                $apiCoworkService->setInvoiceRef($wallet->id, null===$invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '');
-            }
+				$apiCoworkService->setInvoiceRef($wallet->id, null===$invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '');
 
-        }
-        catch (Exception $exception) {
-            $this->output.='Exception '.$exception->getMessage();
-        }
+			}
+			catch (Exception $exception) {
+				var_dump($exception);
+				$this->output.='Exception '.$wallet->id.' '.$exception->getMessage();
+			}
+		}
 
         return 0;
     }
