@@ -332,7 +332,7 @@ class CronCowork {
         }
 
 
-		$amount = $wallet->amount * (1 + ($contract->discount_percent / 100));
+		$amount = $wallet->amount / (1 - ($contract->discount_percent / 100));
         $vat_rate = $wallet->place->vat_rate; //TODO contract vat_rate
         $lines[] = array_merge( (array)$contract, [
             'description' => implode(", ", $descriptions),
