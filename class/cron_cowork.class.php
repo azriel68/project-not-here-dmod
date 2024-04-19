@@ -332,20 +332,20 @@ class CronCowork {
         }
 
 
-
+		$amount = $wallet->amount * (1 + ($contract->discount_percent / 100));
         $vat_rate = $wallet->place->vat_rate; //TODO contract vat_rate
         $lines[] = array_merge( (array)$contract, [
             'description' => implode(", ", $descriptions),
-            'subprice' => $contract->amount,
+			'subprice' => $amount / (1 + ($vat_rate/ 100)),
             'tvatx' =>$vat_rate,
-            'price' => $contract->amount * (1 + ($vat_rate/ 100)),
+			'price' => $amount,
             'remise_percent' => $contract->discount_percent,
 			'dateStart' => $dateStart->getTimestamp(),
 			'dateEnd' => $dateEnd->getTimestamp(),
 
 		]);
 
-        if ($contract->amount === 0) {
+        if ($amount === 0) {
             return null;
         }
 
