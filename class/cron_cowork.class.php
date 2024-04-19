@@ -70,7 +70,7 @@ class CronCowork {
 				dolibarr_set_const($db, 'MAIN_INFO_TVAINTRA', $place->invoice_vatCode, 'chaine', 0, '', $dao->id);
 				dolibarr_set_const($db, 'MAIN_INFO_SIRET', $place->invoice_siret, 'invoice_siret', 0, '', $dao->id);
 				dolibarr_set_const($db, 'MAIN_INFO_SIREN', substr($place->invoice_siret,0,9), 'invoice_siret', 0, '', $dao->id);
-				
+
 			}
         }
 
@@ -161,7 +161,7 @@ class CronCowork {
 					$mailService->sendMail($title, $body,
 						$placeData->name.' <'. $conf->global->MAIN_MAIL_EMAIL_FROM .'>',
 						$userData->firstname.' '.$userData->lastname.' <'. $userData->email.'>',
-						$userData->accounting_email,
+						$userData->accounting_email ?? '',
 						$placeData->emails_cci ?? '', $files, true);
                 }
 
@@ -169,8 +169,8 @@ class CronCowork {
 
 			}
 			catch (Exception $exception) {
-				var_dump($exception);
-				$this->errors[] = 'Exception '.$wallet->id.' '.$exception->getMessage();
+				var_dump($wallet->id, $wallet->place->id, $exception);
+				$this->errors[] = 'Exception '.$wallet->id.' '.$wallet->place->id.' '.$exception->getMessage();
 				$this->output.='Exception '.$wallet->id;
 			}
 		}
@@ -257,24 +257,8 @@ class CronCowork {
 					 le ".$dateStart->format('d/m/Y')." de ".$dateStart->format('H:i')." à ".$dateEnd->format('H:i');
         }
 
-        if ($total === 0) {
-            return null;
-        }
-
-        $invoice = $this->generateInvoice($entity, [
-            'ref_ext' => $wallet->id,
-            'entity' => $entity->id,
-            'thirdparty' => array_merge((array) $userData, [
-                    'ref_ext' => $userData->email,
-                    'name' => trim($userData->company) ? $userData->company : $userData->firstname. ' ' . $userData->lastname,
-                ]
-            ),
-            'lines' => $lines,
-            'payment_id' => substr( $wallet->paymentId, 0 , 30) ?? 'prepaid_contract',
-        ]);
-
-        return $invoice;
-    }
+		return $this->getInvoice($total, $entity->id, $wallet, $userData, $lines);
+	}
 
     private function generateInvoice($entity, $data) {
         global $db, $user, $langs, $conf, $mysoc;
@@ -364,24 +348,8 @@ class CronCowork {
 
 		]);
 
-        if ($amount === 0) {
-            return null;
-        }
-
-        $invoice = $this->generateInvoice($entity, [
-            'ref_ext' =>$wallet->id,
-            'entity' => $entity->id,
-            'thirdparty' => array_merge((array) $userData, [
-                    'ref_ext' => $userData->email,
-                    'name' => trim($userData->company) ? $userData->company : $userData->firstname. ' ' . $userData->lastname,
-                ]
-            ),
-            'lines' => $lines,
-            'payment_id' => substr( $wallet->paymentId,0,30) ?? 'prepaid_contract',
-        ]);
-
-        return $invoice;
-    }
+		return $this->getInvoice($amount, $entity->id, $wallet, $userData, $lines);
+	}
 
     function reminderForTodayReservations(): int {
         global $db, $user, $langs, $conf;
@@ -438,5 +406,35 @@ class CronCowork {
 
         return 0;
     }
+
+	/**
+	 * @param float $amount
+	 * @param int $entity
+	 * @param stdclass $wallet
+	 * @param stdclass $userData
+	 * @param array $lines
+	 * @return Facture|null
+	 * @throws Exception
+	 */
+	private function getInvoice(float $amount, int $entity, \stdclass $wallet, \stdclass $userData, array $lines): ?Facture
+	{
+		if ($amount === 0.0) {
+			return null;
+		}
+
+		$invoice = $this->generateInvoice($entity, [
+			'ref_ext' => $wallet->id,
+			'entity' => $entity,
+			'thirdparty' => array_merge((array)$userData, [
+					'ref_ext' => $userData->email,
+					'name' => trim($userData->company) ? $userData->company : $userData->firstname . ' ' . $userData->lastname,
+				]
+			),
+			'lines' => $lines,
+			'payment_id' => substr($wallet->paymentId, 0, 30) ?? 'prepaid_contract',
+		]);
+
+		return $invoice;
+	}
 
 }
