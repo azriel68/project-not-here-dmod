@@ -50,14 +50,14 @@ class CronCowork {
                 $dao->visible = 1;
                 $dao->active = 1;
 
-                $dao->create($user);
-
+				$this->coworkEntities[$place->id] = $dao->create($user);
 
                 $this->output .= 'Create entity '.$dao->label.' '.$dao->id."\n";
 
                 dolibarr_set_const($db, 'COWORK_ID', $place->id, 'chaine', 0, '', $dao->id);
             }
-			else { // update
+
+			if (!empty($place->invoice_companyName)) { // update
 				$dao = new DaoMulticompany($db);
 				$dao->fetch($this->coworkEntities[$place->id]);
 				$dao->name = $place->invoice_companyName ;
@@ -70,7 +70,6 @@ class CronCowork {
 				dolibarr_set_const($db, 'MAIN_INFO_TVAINTRA', $place->invoice_vatCode, 'chaine', 0, '', $dao->id);
 				dolibarr_set_const($db, 'MAIN_INFO_SIRET', $place->invoice_siret, 'invoice_siret', 0, '', $dao->id);
 				dolibarr_set_const($db, 'MAIN_INFO_SIREN', substr($place->invoice_siret,0,9), 'invoice_siret', 0, '', $dao->id);
-
 			}
         }
 
