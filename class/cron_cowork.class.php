@@ -168,7 +168,7 @@ class CronCowork {
 
 			}
 			catch (Exception $exception) {
-				var_dump($wallet->id, $wallet->place->id, $exception);
+				var_dump('createSpotBills::Exception', $wallet->id, $wallet->place->id, $exception);
 				$this->errors[] = 'Exception '.$wallet->id.' '.$wallet->place->id.' '.$exception->getMessage();
 				$this->output.='Exception '.$wallet->id;
 			}
@@ -259,13 +259,13 @@ class CronCowork {
 		return $this->getInvoice($total, $entity->id, $wallet, $userData, $lines);
 	}
 
-    private function generateInvoice($entity, $data) {
+    private function generateInvoice(int $entity, $data) {
         global $db, $user, $langs, $conf, $mysoc;
 
         $invoiceService = \Dolibarr\Cowork\InvoiceService::make($db, $user);
         $paymentService = \Dolibarr\Cowork\PaymentService::make($db, $user);
 
-        $conf->entity = $entity->id;
+        $conf->entity = $entity;
         $conf->setValues($db);
         $mysoc->setMysoc($conf);
 
