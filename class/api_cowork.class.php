@@ -159,7 +159,48 @@ class Cowork extends DolibarrApi
         throw new RestException(403, 'Invalid call');
 
     }
+        
+    /**
+     * @return string
+     *
+     * @url POST /account/invitation
+     *
+     * @throws RestException
+     */
+    function lostAccountEmail(): string
+    {
+        global $conf, $db, $user;
 
+        $payload_string = @file_get_contents('php://input');
+        $payload = json_decode($payload_string);
+        if (null !== $payload) {
+            dol_include_once('/cowork/service/MailService.php');
+
+            $placeData = $payload->place;
+            $userData = $payload->user;
+
+            $mailService = MailService::make($db, $user);
+
+            $title = "Invitation au cowork {$placeData->name}";
+
+            $body = $mailService->getWappedHTML('email.account.invitation', $title, [
+                    'user' => $userData,
+                    'link' => $payload->link
+                ]
+            );
+
+            $mailService->sendMail($title, $body, $placeData->name.' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>',
+				$userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>',
+				'',
+				$placeData->emails_cci ?? '', [], true);
+
+            return 'ok';
+        }
+
+
+        throw new RestException(403, 'Invalid call');
+
+    }
     /**
      * @return string
      *
@@ -319,4 +360,5 @@ class Cowork extends DolibarrApi
 
 		return 1;
 	}
+        
 }
