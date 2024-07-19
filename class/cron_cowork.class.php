@@ -123,7 +123,7 @@ class CronCowork {
 					$this->output.='basket '.$basket->id.PHP_EOL;
 					$invoice = $this->generateReservationInvoice($wallet, $body_details, $entity);
 
-					$title = "Votre réservation pour {$placeData->name} à été confirmée";
+					$title = "Votre réservation pour {$placeData->name} a été confirmée";
 
                      if (null!==$invoice) {
                         $files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT.'/'.$invoice->last_main_doc);

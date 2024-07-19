@@ -90,7 +90,7 @@ class Cowork extends DolibarrApi
 
             $mailService = MailService::make($db, $user);
 
-            $title = "Votre réservation pour {$placeData->name} à été annulée";
+            $title = "Votre réservation pour {$placeData->name} a été annulée";
 
             $dateStart = new \DateTime($reservation->dateStart->date, new \DateTimeZone("UTC"));
             $dateEnd = new \DateTime($reservation->dateEnd->date, new \DateTimeZone("UTC"));
