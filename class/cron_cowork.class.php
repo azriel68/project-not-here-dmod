@@ -335,6 +335,23 @@ class CronCowork {
             'dateEnd' => $dateEnd->getTimestamp(),
         ]);
 
+        if(!empty($contract->products)) {
+            foreach($contract->products as $cp) {
+                $body_details[] = $cp->product->name.($cp->quantity > 1 ? '<strong> x '.$cp->quantity.'</strong>' : '');
+                
+                $lines[] = array_merge((array) $cp, [
+                    'description' => $cp->product->name,
+                    'subprice' => $cp->product->price / (1 + ($vat_rate / 100)),
+                    'tvatx' => $vat_rate,
+                    'quantity' => $cp->quantity,
+                    'price' => $cp->product->price * $cp->quantity,
+                    'remise_percent' => 0,
+                    'dateStart' => $dateStart->getTimestamp(),
+                    'dateEnd' => $dateEnd->getTimestamp(),
+                ]);
+            }
+        }
+        
         return $this->getInvoice($amount, $entity->id, $wallet, $userData, $lines);
     }
 

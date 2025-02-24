@@ -58,7 +58,7 @@ class InvoiceService extends CoreService {
             $res = $invoice->addline(
                 $line['description'],
                 $line['subprice'],
-                1,
+                $line['quantity'] ?? 1,
                 $line['tvatx'],
                 0,
                 0,
