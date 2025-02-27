@@ -322,14 +322,12 @@ class CronCowork {
             }
         }
 
-
-        $amount = $wallet->amount / (1 - ($contract->discount_percent / 100));
         $vat_rate = $wallet->place->vat_rate; //TODO contract vat_rate
         $lines[] = array_merge((array) $contract, [
             'description' => implode(", ", $descriptions),
-            'subprice' => $amount / (1 + ($vat_rate / 100)),
+            'subprice' => $contract->amount,
             'tvatx' => $vat_rate,
-            'price' => $amount,
+            'price' => $contract->amount,
             'remise_percent' => $contract->discount_percent,
             'dateStart' => $dateStart->getTimestamp(),
             'dateEnd' => $dateEnd->getTimestamp(),
@@ -341,7 +339,7 @@ class CronCowork {
                 
                 $lines[] = array_merge((array) $cp, [
                     'description' => $cp->product->name,
-                    'subprice' => $cp->product->price / (1 + ($vat_rate / 100)),
+                    'subprice' => $cp->product->price,
                     'tvatx' => $vat_rate,
                     'quantity' => $cp->quantity,
                     'price' => $cp->product->price * $cp->quantity,
@@ -352,7 +350,7 @@ class CronCowork {
             }
         }
         
-        return $this->getInvoice($amount, $entity->id, $wallet, $userData, $lines);
+        return $this->getInvoice($wallet->amount, $entity->id, $wallet, $userData, $lines);
     }
 
     function reminderForTodayReservations(): int {
