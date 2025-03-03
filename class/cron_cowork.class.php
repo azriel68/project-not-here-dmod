@@ -2,7 +2,6 @@
 
 dol_include_once('/cowork/service/InvoiceService.php');
 dol_include_once('/cowork/service/PaymentService.php');
-dol_include_once('/cowork/service/MailService.php');
 dol_include_once('/cowork/service/ApiCoworkService.php');
 dol_include_once('/cowork/class/MailFile.class.php');
 dol_include_once('/multicompany/class/actions_multicompany.class.php', 'ActionsMulticompany');
@@ -109,61 +108,25 @@ class CronCowork {
                     continue; // not a managed entity
                 }
 
-                $body_details = [];
-                $body = null;
                 $invoice = null;
 
-                $files = [];
-                
-               
-
+                $invoice_path = null;
                 
                 if (!empty($basket)) {
 
                     $this->output .= 'basket ' . $basket->id . PHP_EOL;
-                    $invoice = $this->generateReservationInvoice($wallet, $body_details, $entity);
-
-                    $title = "Votre réservation pour {$placeData->name} a été confirmée";
-
-                    if (null !== $invoice) {
-                        $files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT . '/' . $invoice->last_main_doc);
-                        $body = $mailService->getWappedHTML('email.invoice.reservation', $title, [
-                            'body_details' => implode("<br/>", $body_details),
-                            'user' => $userData,
-                        ]);
-                    } else if (!empty($userData->free_booking_mail)) {
-                        $body = $mailService->getWappedHTML('email.reservation', $title, [
-                            'body_details' => implode("<br/>", $body_details),
-                            'user' => $userData,
-                        ]);
-                        
-                    }
+                    $invoice = $this->generateReservationInvoice($wallet, $entity);
                     
                 } else if (!empty($contract)) {
                     $this->output .= 'contract ' . $contract->id . PHP_EOL;
-                    $invoice = $this->generateContractInvoice($wallet, $body_details, $entity);
-
-                    $title = "Votre facture de contrat pour {$placeData->name}";
-
-                    $body = $mailService->getWappedHTML('email.invoice.contract', $title, [
-                        'body_details' => implode("<br/>", $body_details),
-                        'user' => $userData,
-                    ]);
-
-                    if (null !== $invoice) {
-                        $files[] = new \Dolibarr\Cowork\MailFile(DOL_DATA_ROOT . '/' . $invoice->last_main_doc);
-                    }
+                    $invoice = $this->generateContractInvoice($wallet, $entity);
                 }
 
-                if (!empty($body)) {
-                    $mailService->sendMail($title, $body,
-                            $placeData->name . ' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>',
-                            $userData->firstname . ' ' . $userData->lastname . ' <' . $userData->email . '>',
-                            $userData->accounting_email ?? '',
-                            $placeData->emails_cci ?? '', $files, true);
+                if (null !== $invoice) {
+                    $invoice_path = DOL_DATA_ROOT . '/' . $invoice->last_main_doc;
                 }
 
-                $apiCoworkService->setInvoiceRef($wallet->id, null === $invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '');
+                $apiCoworkService->setInvoiceRef($wallet->id, null === $invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '', $invoice_path);
             } catch (Exception $exception) {
                 var_dump('createSpotBills::Exception', $wallet->id, $wallet->place->id, $exception);
                 $this->errors[] = 'Exception ' . $wallet->id . ' ' . $wallet->place->id . ' ' . $exception->getMessage();
@@ -219,7 +182,7 @@ class CronCowork {
         return $result;
     }
 
-    private function generateReservationInvoice($wallet, &$body_details, $entity): ?Facture {
+    private function generateReservationInvoice($wallet, $entity): ?Facture {
 
         $basket = $wallet->basket;
         $userData = $wallet->user;
@@ -244,8 +207,6 @@ class CronCowork {
 
             $total += $reservation->price;
 
-            $body_details[] = "Le <strong>bureau " . $reservation->deskReference . "</strong> dans la salle '<strong>" . $reservation->roomName . "</strong>'
-					 le " . $dateStart->format('d/m/Y') . " de " . $dateStart->format('H:i') . " à " . $dateEnd->format('H:i');
         }
 
         return $this->getInvoice($total, $entity->id, $wallet, $userData, $lines);
@@ -281,7 +242,7 @@ class CronCowork {
         return $invoice;
     }
 
-    private function generateContractInvoice($wallet, &$body_details, $entity): ?Facture {
+    private function generateContractInvoice($wallet, $entity): ?Facture {
         global $langs;
 
         $contract = $wallet->contract;
@@ -305,20 +266,13 @@ class CronCowork {
                 }
             }
             $dayString = $langs->trans($daysTrans[(int) $day]);
-
-//var_dump($desk, $dayString);exit;
             $descriptions[] = 'Salle ' . $desk->room_name . ($desk->reference ? ', bureau ' . $desk->reference : '')
                     . ' le ' . $dayString;
-
-            $body_details[] = 'Le <strong>bureau ' . $desk->reference . '</strong> dans la salle <strong>' . $desk->room_name . '</strong>
-					 le ' . $dayString;
         }
 
         foreach ($contract->points as $k => $nb) {
             if ($nb > 0) {
                 $descriptions[] = $nb . ' point(s) ' . $langs->trans('coworkType' . $k);
-
-                $body_details[] = $nb . ' point(s) ' . $langs->trans('coworkType' . $k);
             }
         }
 
@@ -335,14 +289,12 @@ class CronCowork {
 
         if(!empty($contract->products)) {
             foreach($contract->products as $cp) {
-                $body_details[] = $cp->product->name.($cp->quantity > 1 ? '<strong> x '.$cp->quantity.'</strong>' : '');
-                
                 $lines[] = array_merge((array) $cp, [
                     'description' => $cp->product->name,
                     'subprice' => $cp->product->price,
                     'tvatx' => $vat_rate,
                     'quantity' => $cp->quantity,
-                    'price' => $cp->product->price * $cp->quantity,
+                    'price' => $cp->product->price * $cp->quantity * ( 1 + ($vat_rate / 100) ),
                     'remise_percent' => 0,
                     'dateStart' => $dateStart->getTimestamp(),
                     'dateEnd' => $dateEnd->getTimestamp(),
@@ -351,66 +303,6 @@ class CronCowork {
         }
         
         return $this->getInvoice($wallet->amount, $entity->id, $wallet, $userData, $lines);
-    }
-
-    function reminderForTodayReservations(): int {
-        global $db, $user, $langs, $conf;
-
-        $mailService = \Dolibarr\Cowork\MailService::make($db, $user);
-
-        $apiCoworkService = new \Dolibarr\Cowork\ApiCoworkService();
-
-        $apiCoworkService->fetchUser();
-        if (empty($apiCoworkService->user)) {
-            $this->errors[] = 'login failed on ' . $conf->global->COWORK_API_USER;
-            return -9;
-        }
-
-        $reservations = $apiCoworkService->getTodayReservations();
-
-        if (empty($reservations)) {
-            $this->errors[] = 'No reservation found';
-            return 0;
-        }
-
-        foreach ($reservations as $reservation) {
-
-            $this->output .= 'reservation ' . $reservation->id . PHP_EOL;
-
-            $userData = & $reservation->user;
-            $place = $reservation->place;
-
-            if (empty($userData->booking_reminder_mail)) {
-                continue; // do not want a reminder
-            }
-
-            $entity = $this->getEntityToSwitch($place->id);
-            if (null === $entity) {
-                continue; // not a managed entity
-            }
-
-
-            $dateStart = new \DateTime($reservation->dateStart, new \DateTimeZone("UTC"));
-            $dateEnd = new \DateTime($reservation->dateEnd, new \DateTimeZone("UTC"));
-
-            $title = " Rappel : Vous avez une réservation pour {$place->name} aujourd’hui !";
-
-            $body = $mailService->getWappedHTML('email.reservation.today', $title, [
-                'reservation' => $reservation,
-                'link_door' => $place->front_url . 'bookings',
-                'user' => $userData,
-                'hour_start' => $dateStart->format('H:i'),
-                'hour_end' => $dateEnd->format('H:i'),
-                    ]
-            );
-
-            $mailService->sendMail($title, $body, $place->name . ' <' . $conf->global->MAIN_MAIL_EMAIL_FROM . '>',
-                    $userData->email,
-                    '',
-                    $place->emails_cci ?? '', [], true);
-        }
-
-        return 0;
     }
 
     /**
