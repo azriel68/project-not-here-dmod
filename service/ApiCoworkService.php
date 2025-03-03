@@ -68,11 +68,11 @@ class ApiCoworkService {
         }
     }
 
-    public function setInvoiceRef($paymentId, $invoiceRef, $filepath) {
-
+    public function setInvoiceRef($paymentId, $invoiceRef, $filepath, $full_path = null) {
 		$curl = $this->getClient('/admin/payment/billed/'.$paymentId, 'POST', [
 			'invoice_path'=>$filepath,
 			'invoice_ref' =>$invoiceRef,
+                        'invoice_body' => empty($full_path) ? null : base64_encode(file_get_contents($full_path))
 		]);
 
         $json = curl_exec($curl);
