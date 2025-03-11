@@ -14,9 +14,19 @@ class CronCowork {
     public string $error = '';
     private array $coworkEntities = [];
     private array $entities = [];
+    
+    /**
+    *  Constructor
+    *
+    *  @param	DoliDb		$db      Database handler
+    */
+    public function __construct($db)
+    {
+           $this->db = $db;
+    }
 
     public function createEntities(): int {
-        global $conf, $db, $user;
+        global $conf, $user;
 
         if (!class_exists('DaoMulticompany')) {
             $this->errors[] = 'Require DaoMulticompany';
@@ -42,7 +52,7 @@ class CronCowork {
         $this->initEntities();
         foreach ($data as $place) {
             if (!isset($this->coworkEntities[$place->id])) {
-                $dao = new DaoMulticompany($db);
+                $dao = new DaoMulticompany($this->db);
                 $dao->label = $place->name;
                 $dao->visible = 1;
                 $dao->active = 1;
@@ -51,22 +61,22 @@ class CronCowork {
 
                 $this->output .= 'Create entity ' . $dao->label . ' ' . $dao->id . "\n";
 
-                dolibarr_set_const($db, 'COWORK_ID', $place->id, 'chaine', 0, '', $dao->id);
+                dolibarr_set_const($this->db, 'COWORK_ID', $place->id, 'chaine', 0, '', $dao->id);
             }
 
             if (!empty($place->invoice_companyName)) { // update
-                $dao = new DaoMulticompany($db);
+                $dao = new DaoMulticompany($this->db);
                 $dao->fetch($this->coworkEntities[$place->id]);
                 $dao->name = $place->invoice_companyName;
                 $dao->address = $place->invoice_address;
                 $dao->zip = $place->invoice_zip;
                 $dao->town = $place->invoice_city;
                 $dao->update($dao->id, $user);
-                dolibarr_set_const($db, 'MAIN_INFO_SOCIETE_TEL', $place->invoice_phone, 'chaine', 0, '', $dao->id);
-                dolibarr_set_const($db, 'MAIN_INFO_SOCIETE_MAIL', $place->invoice_email, 'chaine', 0, '', $dao->id);
-                dolibarr_set_const($db, 'MAIN_INFO_TVAINTRA', $place->invoice_vatCode, 'chaine', 0, '', $dao->id);
-                dolibarr_set_const($db, 'MAIN_INFO_SIRET', $place->invoice_siret, 'invoice_siret', 0, '', $dao->id);
-                dolibarr_set_const($db, 'MAIN_INFO_SIREN', substr($place->invoice_siret, 0, 9), 'invoice_siret', 0, '', $dao->id);
+                dolibarr_set_const($this->db, 'MAIN_INFO_SOCIETE_TEL', $place->invoice_phone, 'chaine', 0, '', $dao->id);
+                dolibarr_set_const($this->db, 'MAIN_INFO_SOCIETE_MAIL', $place->invoice_email, 'chaine', 0, '', $dao->id);
+                dolibarr_set_const($this->db, 'MAIN_INFO_TVAINTRA', $place->invoice_vatCode, 'chaine', 0, '', $dao->id);
+                dolibarr_set_const($this->db, 'MAIN_INFO_SIRET', $place->invoice_siret, 'invoice_siret', 0, '', $dao->id);
+                dolibarr_set_const($this->db, 'MAIN_INFO_SIREN', substr($place->invoice_siret, 0, 9), 'invoice_siret', 0, '', $dao->id);
             }
         }
 
@@ -75,7 +85,7 @@ class CronCowork {
     }
 
     public function createSpotBills(): int {
-        global $db, $user, $conf;
+        global $user, $conf;
 
         $apiCoworkService = new \Dolibarr\Cowork\ApiCoworkService();
 
@@ -94,6 +104,8 @@ class CronCowork {
 
         $this->output = '';
 
+        $invoicesToSet = [];
+        
         foreach ($data as $wallet) {
             try {
                 $basket = $wallet->basket;
@@ -123,35 +135,40 @@ class CronCowork {
                 if (null !== $invoice) {
                     $invoice_path = DOL_DATA_ROOT . '/' . $invoice->last_main_doc;
                 }
-
-                $apiCoworkService->setInvoiceRef($wallet->id, null === $invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '', $invoice_path);
+                
+                $invoicesToSet[] = [$wallet->id, null === $invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '', $invoice_path];
             } catch (Exception $exception) {
                 var_dump('createSpotBills::Exception', $wallet->id, $wallet->place->id, $exception);
                 $this->errors[] = 'Exception ' . $wallet->id . ' ' . $wallet->place->id . ' ' . $exception->getMessage();
                 $this->output .= 'Exception ' . $wallet->id;
+                
+                return 0;
             }
         }
 
+        foreach($invoicesToSet as $data) {
+            $apiCoworkService->setInvoiceRef($data[0], $data[1], $data[2], $data[3]);
+        }
+        
         return 0;
     }
 
     private function initEntities(): void {
-        global $db;
-
+       
         if (!class_exists('DaoMulticompany')) {
             return;
         }
 
         $sql = "SELECT value, entity FROM " . MAIN_DB_PREFIX . "const WHERE name='COWORK_ID'";
-        $result = $db->query($sql);
+        $result = $this->db->query($sql);
 
         if ($result) {
-            while ($obj = $db->fetch_object($result)) {
+            while ($obj = $this->db->fetch_object($result)) {
                 $this->coworkEntities[$obj->value] = $obj->entity;
             }
         }
 
-        $dao = new DaoMulticompany($db);
+        $dao = new DaoMulticompany($this->db);
         $dao->getEntities();
         $this->entities = $dao->entities;
     }
@@ -211,13 +228,13 @@ class CronCowork {
     }
 
     private function generateInvoice(int $entity, $data) {
-        global $db, $user, $langs, $conf, $mysoc;
+        global $user, $langs, $conf, $mysoc;
 
-        $invoiceService = \Dolibarr\Cowork\InvoiceService::make($db, $user);
-        $paymentService = \Dolibarr\Cowork\PaymentService::make($db, $user);
+        $invoiceService = \Dolibarr\Cowork\InvoiceService::make($this->db, $user);
+        $paymentService = \Dolibarr\Cowork\PaymentService::make($this->db, $user);
 
         $conf->entity = $entity;
-        $conf->setValues($db);
+        $conf->setValues($this->db);
         $mysoc->setMysoc($conf);
 
         $invoice = $invoiceService->create($data);
@@ -234,7 +251,7 @@ class CronCowork {
         }
 
         $conf->entity = 1;
-        $conf->setValues($db);
+        $conf->setValues($this->db);
         $mysoc->setMysoc($conf);
 
         return $invoice;
