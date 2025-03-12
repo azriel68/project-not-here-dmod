@@ -28,6 +28,10 @@ class CronCowork {
     public function createEntities(): int {
         global $conf, $user;
 
+        $this->errors[] = 'cron update entities disabled';
+        return -1;
+
+        
         if (!class_exists('DaoMulticompany')) {
             $this->errors[] = 'Require DaoMulticompany';
             return -1;
@@ -77,6 +81,7 @@ class CronCowork {
                 dolibarr_set_const($this->db, 'MAIN_INFO_TVAINTRA', $place->invoice_vatCode, 'chaine', 0, '', $dao->id);
                 dolibarr_set_const($this->db, 'MAIN_INFO_SIRET', $place->invoice_siret, 'invoice_siret', 0, '', $dao->id);
                 dolibarr_set_const($this->db, 'MAIN_INFO_SIREN', substr($place->invoice_siret, 0, 9), 'invoice_siret', 0, '', $dao->id);
+                $this->output .= 'Update entity ' . $dao->label . ' ' . $dao->id . "\n";
             }
         }
 
