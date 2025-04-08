@@ -296,20 +296,14 @@ class CronCowork {
             }
         }
 
+        $ammount_ttc = $wallet->amount;
         $vat_rate = $wallet->place->vat_rate; //TODO contract vat_rate
-        $lines[] = array_merge((array) $contract, [
-            'description' => implode(", ", $descriptions),
-            'subprice' => $contract->amount,
-            'tvatx' => $vat_rate,
-            'price' => $contract->amount,
-            'remise_percent' => $contract->discount_percent,
-            'dateStart' => $dateStart->getTimestamp(),
-            'dateEnd' => $dateEnd->getTimestamp(),
-        ]);
-
+        $amount_ht = $ammount_ttc / ( 1 + ($vat_rate / 100) ) / (1 - ($contract->discount_percent / 100));
+         
         if(!empty($contract->products)) {
             foreach($contract->products as $cp) {
-                $lines[] = array_merge((array) $cp, [
+                $descriptions[] = $cp->product->name." x ".$cp->quantity;
+                /*$lines[] = array_merge((array) $cp, [
                     'description' => $cp->product->name,
                     'subprice' => $cp->product->price,
                     'tvatx' => $vat_rate,
@@ -318,10 +312,21 @@ class CronCowork {
                     'remise_percent' => 0,
                     'dateStart' => $dateStart->getTimestamp(),
                     'dateEnd' => $dateEnd->getTimestamp(),
-                ]);
+                ]);*/
             }
         }
-        
+                
+//var_dump($ammount_ttc, $amount_ht, $vat_rate, $contract->discount_percent);exit;
+        $lines[] = array_merge((array) $contract, [
+            'description' => implode("<br />", $descriptions),
+            'subprice' => $amount_ht,
+            'tvatx' => $vat_rate,
+            'price' => $ammount_ttc,
+            'remise_percent' => $contract->discount_percent,
+            'dateStart' => $dateStart->getTimestamp(),
+            'dateEnd' => $dateEnd->getTimestamp(),
+        ]);
+    // var_dump($lines);exit;   
         return $this->getInvoice($wallet->amount, $entity->id, $wallet, $userData, $lines);
     }
 
