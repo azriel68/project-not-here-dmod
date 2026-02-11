@@ -15,6 +15,59 @@ use Dolibarr\Core\CoreService;
 
 class InvoiceService extends CoreService {
 
+    public function createCreditNote(array $data): \Facture
+    {
+        global $conf;
+
+        $invoice = new \Facture($this->db);
+
+        $invoice->fetch(0, '', $data['ref_ext']); //for obscur reason (and surely a middle bug, the invoice already exist)
+        if ($invoice->id > 0) {
+                return $invoice;
+        }
+
+        $originInvoice = new \Facture($this->db);
+        $originInvoice->fetch(0, $data['invoice_ref']);
+        if ($originInvoice->id <= 0) {
+            exit('who');
+                return null;
+        }
+        
+        $invoice->ref_ext = $data['ref_ext']; //TODO check if ref_ext already exist
+        $invoice->entity = $data['entity'];
+        $invoice->fk_facture_source = $originInvoice->id;
+        $invoice->type = \Facture::TYPE_CREDIT_NOTE;
+        $invoice->brouillon = 0;
+        $invoice->status = \Facture::STATUS_DRAFT;
+        $invoice->date = dol_now();
+
+        $thirdpartyService = ThirdpartyService::make($this->db, $this->user);
+
+        $invoice->socid = ($thirdpartyService->updateOrcreate($data['thirdparty'], $invoice->entity))->id;
+
+        if ($invoice->create($this->user)<0) {
+            throw new \Exception($invoice->error);
+        }
+        
+        $invoice->addline('Avoir sur la facture '.$originInvoice->ref, -$data['refund_amount'], 1, 0, 0, 0, 0, 0, '', '', 'TTC');
+        
+        
+        $originInvoice->fetchObjectLinked();
+
+        if (!empty($originInvoice->linkedObjectsIds)) {
+                foreach ($originInvoice->linkedObjectsIds as $sourcetype => $TIds) {
+                        $invoice->add_object_linked($sourcetype, current($TIds));
+                }
+        }
+	                        
+        if ($invoice->validate($this->user)<0) {
+            throw new \Exception('CreditNote Validatation::'.$invoice->error);
+        }
+
+        return $invoice;
+    }
+    
+    
     public function create(array $data): \Facture
     {
         global $conf;
@@ -30,7 +83,7 @@ class InvoiceService extends CoreService {
         $invoice->entity = $data['entity'];
         $invoice->type = \Facture::TYPE_STANDARD;
         $invoice->brouillon = 0;
-        $invoice->status = $invoice->statut = \Facture::STATUS_DRAFT;
+        $invoice->status = \Facture::STATUS_DRAFT;
         $invoice->date = dol_now();
 
         $thirdpartyService = ThirdpartyService::make($this->db, $this->user);
