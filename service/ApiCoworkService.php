@@ -67,9 +67,37 @@ class ApiCoworkService {
             return [];
         }
     }
+    
+    public function getPaymentsRefund(): array {
+
+        try {
+			$curl = $this->getClient('/admin/payments/refunded');
+            $json = curl_exec($curl);
+
+            curl_close($curl);
+
+            return json_decode($json) ?? [];
+
+        }
+        catch(\Exception $exception) {
+            dol_syslog(get_class($this).'::getPaymentsRefund '.$exception->getMessage());
+            return [];
+        }
+    }
 
     public function setInvoiceRef($paymentId, $invoiceRef, $filepath, $full_path = null) {
 		$curl = $this->getClient('/admin/payment/billed/'.$paymentId, 'POST', [
+			'invoice_path'=>$filepath,
+			'invoice_ref' =>$invoiceRef,
+                        'invoice_body' => empty($full_path) ? null : base64_encode(file_get_contents($full_path))
+		]);
+
+        $json = curl_exec($curl);
+        return json_decode($json);
+    }
+
+    public function setCreditNoteRef($paymentId, $invoiceRef, $filepath, $full_path = null) {
+		$curl = $this->getClient('/admin/payment/refunded/'.$paymentId, 'POST', [
 			'invoice_path'=>$filepath,
 			'invoice_ref' =>$invoiceRef,
                         'invoice_body' => empty($full_path) ? null : base64_encode(file_get_contents($full_path))

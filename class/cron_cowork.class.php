@@ -158,6 +158,69 @@ class CronCowork {
         return 0;
     }
 
+    public function createCreditNotes(): int {
+        global $user, $conf;
+
+        $apiCoworkService = new \Dolibarr\Cowork\ApiCoworkService();
+
+        $apiCoworkService->fetchUser();
+        if (empty($apiCoworkService->user)) {
+            $this->errors[] = 'login failed on ' . $conf->global->COWORK_API_USER;
+            return -9;
+        }
+
+        $data = $apiCoworkService->getPaymentsRefund();
+
+        if (empty($data)) {
+            $this->errors[] = 'No wallet found';
+            return 0;
+        }
+
+        $this->output = '';
+
+        $invoicesToSet = [];
+        
+        foreach ($data as $wallet) {
+            try {
+                $basket = $wallet->basket;
+                $contract = $wallet->contract;
+                $userData = $wallet->user;
+                $placeData = $wallet->place;
+                $entity = $this->getEntityToSwitch($placeData->id);
+                if (null === $entity) {
+                    $this->output .= ' (' . $placeData->id . ' no managed) ';
+                    continue; // not a managed entity
+                }
+
+                $invoice = null;
+
+                $invoice_path = null;
+                
+                $this->output .= 'credit note ' . $wallet->refundId . PHP_EOL;
+                $invoice = $this->generateCreditNote($wallet, $entity);
+
+
+                if (null !== $invoice) {
+                    $invoice_path = DOL_DATA_ROOT . '/' . $invoice->last_main_doc;
+                }
+                
+                $invoicesToSet[] = [$wallet->id, null === $invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '', $invoice_path];
+            } catch (Exception $exception) {
+                var_dump('createCreditNotes::Exception', $wallet->id, $wallet->place->id, $exception);
+                $this->errors[] = 'Exception ' . $wallet->id . ' ' . $wallet->place->id . ' ' . $exception->getMessage();
+                $this->output .= 'Exception ' . $wallet->id;
+                
+                return 0;
+            }
+        }
+
+        foreach($invoicesToSet as $data) {
+            $apiCoworkService->setCreditNoteRef($data[0], $data[1], $data[2], $data[3]);
+        }
+        
+        return 0;
+    }
+    
     private function initEntities(): void {
        
         if (!class_exists('DaoMulticompany')) {
@@ -200,6 +263,51 @@ class CronCowork {
         }
 
         return $result;
+    }
+    
+    private function generateCreditNote($wallet, $entity): ?Facture {
+        global $user, $langs, $conf, $mysoc;
+
+        $userData = $wallet->user;
+
+        $data = [
+            'ref_ext' => $wallet->refundId,
+            'entity' => $entity->id,
+            'thirdparty' => array_merge((array) $userData, [
+                'ref_ext' => $userData->email,
+                'name' => trim($userData->company) ? $userData->company : $userData->firstname . ' ' . $userData->lastname,
+                ]
+            ),                          
+            'refund_id' => substr($wallet->refundId, 0, 30),
+            'invoice_ref' => $wallet->invoiceRef,
+        ];
+
+        $invoiceService = \Dolibarr\Cowork\InvoiceService::make($this->db, $user);
+        $paymentService = \Dolibarr\Cowork\PaymentService::make($this->db, $user);
+
+        $conf->entity = $entity->id;
+        $conf->setValues($this->db);
+        $mysoc->setMysoc($conf);
+
+        $invoice = $invoiceService->createCreditNote($data);
+        $this->output .= ' credit note -> ' . $invoice->ref;
+
+        if ($invoice->getRemainToPay() < 0) {
+            $paymentService->createFromInvoice($invoice, $data['refund_id']);
+        } else {
+            $invoice->setPaid($user);
+        }
+
+        if ($invoice->generateDocument('sponge', $langs) < 0) {
+            throw new \Exception('Invoice PDF::' . $invoice->error);
+        }
+
+        $conf->entity = 1;
+        $conf->setValues($this->db);
+        $mysoc->setMysoc($conf);
+        
+        return $invoice;
+        
     }
 
     private function generateReservationInvoice($wallet, $entity): ?Facture {
@@ -354,6 +462,7 @@ class CronCowork {
             ),
             'lines' => $lines,
             'payment_id' => substr($wallet->paymentId, 0, 30) ?? 'prepaid_contract',
+            'refund_id' => substr($wallet->paymentId, 0, 30) ?? 'prepaid_contract',
         ]);
 
         return $invoice;
