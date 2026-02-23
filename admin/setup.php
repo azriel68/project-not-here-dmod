@@ -107,6 +107,8 @@ $item = $formSetup->newItem('COWORK_API_PASSWORD');
 $item->defaultFieldValue = '';
 $item = $formSetup->newItem('COWORK_ACCOUNT_REF');
 $item->defaultFieldValue = 'STRIPE';
+$item = $formSetup->newItem('FACTURE_DRAFT_WATERMARK');
+$item->defaultFieldValue = 'PROFORMA';
 
 $setupnotempty += count($formSetup->items);
 

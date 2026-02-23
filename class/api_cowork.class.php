@@ -35,6 +35,8 @@ class Cowork extends DolibarrApi
             $conf->setValues($db);
         }
 
+        $ref = base64_decode($ref);
+        
         $original_file = $conf->facture->multidir_output[$conf->entity] . '/' . $ref . '/' . $ref . '.pdf';
 
         $filename = basename($original_file);

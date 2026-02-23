@@ -89,6 +89,70 @@ class CronCowork {
         return 0;
     }
 
+    public function createDraftContractBills(): int {
+         global $user, $conf;
+
+        $apiCoworkService = new \Dolibarr\Cowork\ApiCoworkService();
+
+        $apiCoworkService->fetchUser();
+        if (empty($apiCoworkService->user)) {
+            $this->errors[] = 'login failed on ' . $conf->global->COWORK_API_USER;
+            return -9;
+        }
+
+        $data = $apiCoworkService->getContractPaymentsToPay();
+
+        if (empty($data)) {
+            $this->errors[] = 'No wallet found';
+            return 0;
+        }
+
+        $this->output = '';
+
+        $invoicesToSet = [];
+        
+        foreach ($data as $wallet) {
+            try {
+                $basket = $wallet->basket;
+                $contract = $wallet->contract;
+                $userData = $wallet->user;
+                $placeData = $wallet->place;
+                $entity = $this->getEntityToSwitch($placeData->id);
+                if (null === $entity) {
+                    $this->output .= ' (' . $placeData->id . ' no managed) ';
+                    continue; // not a managed entity
+                }
+
+                $invoice = null;
+
+                $invoice_path = null;
+
+                $this->output .= 'contract ' . $contract->id . PHP_EOL;
+                $invoice = $this->generateContractInvoice($wallet, $entity, true);
+
+
+                if (null !== $invoice) {
+                    $invoice_path = DOL_DATA_ROOT . '/' . $invoice->last_main_doc;
+                }
+                
+                $invoicesToSet[] = [$wallet->id, null === $invoice ? 'NO_INVOICE' : $invoice->ref, $invoice->last_main_doc ?? '', $invoice_path];
+            } catch (Exception $exception) {
+                var_dump('createSpotBills::Exception', $wallet->id, $wallet->place->id, $exception);
+                $this->errors[] = 'Exception ' . $wallet->id . ' ' . $wallet->place->id . ' ' . $exception->getMessage();
+                $this->output .= 'Exception ' . $wallet->id;
+                
+                return 0;
+            }
+        }
+
+        foreach($invoicesToSet as $data) {
+            $apiCoworkService->setDraftInvoiceRef($data[0], $data[1], $data[2], $data[3]);
+        }
+        
+        return 0;
+        
+    }
+    
     public function createSpotBills(): int {
         global $user, $conf;
 
@@ -341,23 +405,26 @@ class CronCowork {
         return $this->getInvoice($total, $entity->id, $wallet, $userData, $lines);
     }
 
-    private function generateInvoice(int $entity, $data) {
+    private function generateInvoice(int $entity, $data, bool $draft = false) {
         global $user, $langs, $conf, $mysoc;
 
         $invoiceService = \Dolibarr\Cowork\InvoiceService::make($this->db, $user);
         $paymentService = \Dolibarr\Cowork\PaymentService::make($this->db, $user);
 
+        $filigramm = $conf->global->FACTURE_DRAFT_WATERMARK;
         $conf->entity = $entity;
         $conf->setValues($this->db);
         $mysoc->setMysoc($conf);
+        $conf->global->FACTURE_DRAFT_WATERMARK = $filigramm;
 
-        $invoice = $invoiceService->create($data);
+        $invoice = $invoiceService->create($data, !$draft);
         $this->output .= ' invoice -> ' . $invoice->ref;
-
-        if ($invoice->getRemainToPay() > 0) {
-            $paymentService->createFromInvoice($invoice, $data['payment_id']);
-        } else {
-            $invoice->setPaid($user);
+        if (!$draft) {
+            if ($invoice->getRemainToPay() > 0) {
+                $paymentService->createFromInvoice($invoice, $data['payment_id']);
+            } else {
+                $invoice->setPaid($user);
+            }
         }
 
         if ($invoice->generateDocument('sponge', $langs) < 0) {
@@ -371,7 +438,7 @@ class CronCowork {
         return $invoice;
     }
 
-    private function generateContractInvoice($wallet, $entity): ?Facture {
+    private function generateContractInvoice($wallet, $entity, bool $draft = false): ?Facture {
         global $langs;
 
         $contract = $wallet->contract;
@@ -436,7 +503,7 @@ class CronCowork {
             'dateEnd' => $dateEnd->getTimestamp(),
         ]);
     // var_dump($lines);exit;   
-        return $this->getInvoice($wallet->amount, $entity->id, $wallet, $userData, $lines);
+        return $this->getInvoice($wallet->amount, $entity->id, $wallet, $userData, $lines,$draft);
     }
 
     /**
@@ -448,7 +515,7 @@ class CronCowork {
      * @return Facture|null
      * @throws Exception
      */
-    private function getInvoice(float $amount, int $entity, \stdclass $wallet, \stdclass $userData, array $lines): ?Facture {
+    private function getInvoice(float $amount, int $entity, \stdclass $wallet, \stdclass $userData, array $lines, bool $draft = false): ?Facture {
         if ($amount === 0.0) {
             return null;
         }
@@ -464,7 +531,7 @@ class CronCowork {
             'lines' => $lines,
             'payment_id' => substr($wallet->paymentId, 0, 30) ?? 'prepaid_contract',
             'refund_id' => substr($wallet->paymentId, 0, 30) ?? 'prepaid_contract',
-        ]);
+        ], $draft);
 
         return $invoice;
     }

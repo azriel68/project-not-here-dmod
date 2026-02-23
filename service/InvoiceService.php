@@ -68,7 +68,7 @@ class InvoiceService extends CoreService {
     }
     
     
-    public function create(array $data): \Facture
+    public function create(array $data, bool $validate = true): \Facture
     {
         global $conf;
 
@@ -76,6 +76,10 @@ class InvoiceService extends CoreService {
 
         $invoice->fetch(0, '', $data['ref_ext']); //for obscur reason (and surely a middle bug, the invoice already exist)
         if ($invoice->id > 0) {
+                if ($validate && $invoice->status == \Facture::STATUS_DRAFT) {
+                    $invoice->validate($this->user);
+                }            
+            
                 return $invoice;
         }
 
@@ -96,7 +100,11 @@ class InvoiceService extends CoreService {
 
         $this->addLines($invoice, $data['lines']);
 
-        if ($invoice->validate($this->user)<0) {
+        if(!$validate) {
+            $invoice->fetch_thirdparty();
+            $invoice->fetch_lines();
+        }
+        else if ($invoice->validate($this->user)<0) {
             throw new \Exception('Invoice Validatation::'.$invoice->error);
         }
 
