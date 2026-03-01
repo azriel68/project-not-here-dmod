@@ -76,11 +76,9 @@ class InvoiceService extends CoreService {
 
         $invoice->fetch(0, '', $data['ref_ext']); //for obscur reason (and surely a middle bug, the invoice already exist)
         if ($invoice->id > 0) {
-                if ($validate && $invoice->status == \Facture::STATUS_DRAFT) {
-                    $invoice->validate($this->user);
-                }            
+            $invoice->validate($this->user);
             
-                return $invoice;
+            return $invoice;
         }
 
         $invoice->ref_ext = $data['ref_ext']; //TODO check if ref_ext already exist

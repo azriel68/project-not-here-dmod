@@ -418,7 +418,7 @@ class CronCowork {
         $conf->global->FACTURE_DRAFT_WATERMARK = $filigramm;
 
         $invoice = $invoiceService->create($data, !$draft);
-        $this->output .= ' invoice -> ' . $invoice->ref;
+        $this->output .= ' invoice '.($draft ? 'draft' : 'final').' -> ' . $invoice->ref;
         if (!$draft) {
             if ($invoice->getRemainToPay() > 0) {
                 $paymentService->createFromInvoice($invoice, $data['payment_id']);
