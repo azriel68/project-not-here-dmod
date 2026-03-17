@@ -11,12 +11,12 @@ use Dolibarr\Core\CoreService;
 
 class PaymentService extends CoreService {
 
-	public function createFromInvoice(\Facture $invoice, string $paymentId): void {
+	public function createFromInvoice(\Facture $invoice, string $paymentId, string $paymentType = 'CB'): void {
 
 		$payment = new \Paiement($this->db);
 		$payment->datepaye     = $invoice->date;
 		$payment->amounts      = [ $invoice->id => $invoice->total_ttc ]; // Array with all payments dispatching with invoice id
-		$payment->paiementid   = dol_getIdFromCode($this->db, 'CB', 'c_paiement', 'code', 'id', 1);
+		$payment->paiementid   = dol_getIdFromCode($this->db, $paymentType, 'c_paiement', 'code', 'id', 1);
 		$payment->num_payment  = $paymentId;
 		$payment->note_private = 'stripe';
 

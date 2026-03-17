@@ -421,7 +421,7 @@ class CronCowork {
         $this->output .= ' invoice '.($draft ? 'draft' : 'final').' -> ' . $invoice->ref;
         if (!$draft) {
             if ($invoice->getRemainToPay() > 0) {
-                $paymentService->createFromInvoice($invoice, $data['payment_id']);
+                $paymentService->createFromInvoice($invoice, $data['payment_id'], empty($data['payment_type']) ? 'CB' : $data['payment_type']);
             } else {
                 $invoice->setPaid($user);
             }
@@ -530,6 +530,7 @@ class CronCowork {
             ),
             'lines' => $lines,
             'payment_id' => substr($wallet->paymentId, 0, 30) ?? 'prepaid_contract',
+            'payment_type' => $wallet->paymentType ?? 'CB',
             'refund_id' => substr($wallet->paymentId, 0, 30) ?? 'prepaid_contract',
         ], $draft);
 
