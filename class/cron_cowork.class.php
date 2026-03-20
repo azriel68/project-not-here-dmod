@@ -182,6 +182,7 @@ class CronCowork {
                 $userData = $wallet->user;
                 $placeData = $wallet->place;
                 $entity = $this->getEntityToSwitch($placeData->id);
+                
                 if (null === $entity) {
                     $this->output .= ' (' . $placeData->id . ' no managed) ';
                     continue; // not a managed entity
@@ -216,7 +217,7 @@ class CronCowork {
         }
 
         foreach($invoicesToSet as $data) {
-            $apiCoworkService->setInvoiceRef($data[0], $data[1], $data[2], $data[3]);
+          $apiCoworkService->setInvoiceRef($data[0], $data[1], $data[2], $data[3]);
         }
         
         return 0;
@@ -401,6 +402,25 @@ class CronCowork {
             $total += $reservation->price;
 
         }
+        
+        foreach ($basket->tickets as $ticket) {
+            $dateStart = new \DateTime('now', new \DateTimeZone("UTC"));
+            $dateEnd = new \DateTime($ticket->date_end, new \DateTimeZone("UTC"));
+            
+            $description = $ticket->label;
+            $lines[] = array_merge((array) $ticket, [
+                'description' => $description,
+                'dateStart' => $dateStart->getTimestamp(),
+                'dateEnd' => $dateEnd->getTimestamp(),
+                'subprice' => $ticket->amount,
+                'tvatx' => $basket->vatRate,
+                'price' => $ticket->amount * (1 + ($basket->vatRate / 100)),
+            ]);
+
+            $total += $ticket->amount; 
+            
+        }
+        
 
         return $this->getInvoice($total, $entity->id, $wallet, $userData, $lines);
     }
