@@ -439,7 +439,7 @@ class CronCowork {
 
         $invoice = $invoiceService->create($data, !$draft);
         $this->output .= ' invoice '.($draft ? 'draft' : 'final').' -> ' . $invoice->ref;
-        if (!$draft) {
+        if (!$draft && !empty($data['payment_id'])) {
             if ($invoice->getRemainToPay() > 0) {
                 $paymentService->createFromInvoice($invoice, $data['payment_id'], empty($data['payment_type']) ? 'CB' : $data['payment_type']);
             } else {

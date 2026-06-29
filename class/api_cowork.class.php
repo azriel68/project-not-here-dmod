@@ -4,6 +4,9 @@ use Luracast\Restler\RestException;
 
 dol_include_once('/multicompany/class/actions_multicompany.class.php', 'ActionsMulticompany');
 require_once DOL_DOCUMENT_ROOT . '/core/lib/admin.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
+require_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 
 /**
  * API class for Cowork
@@ -55,6 +58,147 @@ class Cowork extends DolibarrApi
             'encoding' => 'base64'
         ];
     }
+    
+    
+     /**
+     * Export invoices of an entity for a given period as a ZIP (transactions.csv + PDFs)
+     *
+     * @param string $coworkId  COWORK_ID guid (stored in llx_const per entity)
+     * @param string $dateStart Start date YYYY-MM-DD (inclusive)
+     * @param string $dateEnd   End date   YYYY-MM-DD (inclusive)
+     * @return array  { filename, content-type, filesize, content (base64), encoding }
+     *
+     * @url GET /invoice/export/{coworkId}/{dateStart}/{dateEnd}
+     *
+     * @throws RestException
+     */
+    function exportInvoices(string $coworkId, string $dateStart, string $dateEnd): array
+    {
+        global $conf, $db;
+ 
+        // Resolve entity from COWORK_ID constant
+        $sql    = "SELECT entity FROM " . MAIN_DB_PREFIX . "const"
+                . " WHERE name='COWORK_ID' AND value='" . $db->escape($coworkId) . "'";
+        $resEnt = $db->query($sql);
+        if (!$resEnt || !($objEnt = $db->fetch_object($resEnt))) {
+            throw new RestException(404, 'No entity found for COWORK_ID: ' . $coworkId);
+        }
+        $entity = (int)$objEnt->entity;
+ 
+        // Switch entity
+        if ($entity > 1) {
+            $conf->entity = $entity;
+            $conf->setValues($db);
+        }
+ 
+        // Validate dates
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateStart) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateEnd)) {
+            throw new RestException(400, 'Dates must be YYYY-MM-DD');
+        }
+ 
+        // Fetch entity label
+        $sqlLbl      = "SELECT label FROM " . MAIN_DB_PREFIX . "entity WHERE rowid = " . $entity;
+        $resLbl      = $db->query($sqlLbl);
+        $entityLabel = ($resLbl && ($objLbl = $db->fetch_object($resLbl))) ? $objLbl->label : (string)$entity;
+ 
+        // Fetch invoices for the period
+        $sql  = "SELECT f.rowid, f.ref, f.datef, f.date_lim_reglement,";
+        $sql .= " f.total_ht, f.total_ttc, f.total_tva, f.paye,";
+        $sql .= " s.nom AS tiers, s.code_client AS code, c.code AS pays, s.tva_intra";
+        $sql .= " FROM "   . MAIN_DB_PREFIX . "facture f";
+        $sql .= " LEFT JOIN " . MAIN_DB_PREFIX . "societe s ON s.rowid = f.fk_soc";
+        $sql .= " LEFT JOIN " . MAIN_DB_PREFIX . "c_country c ON c.rowid = s.fk_pays";
+        $sql .= " WHERE f.entity = " . $entity;
+        $sql .= " AND f.datef BETWEEN '" . $db->escape($dateStart) . "' AND '" . $db->escape($dateEnd)   . "'";
+        $sql .= " AND f.fk_statut IN (".Facture::STATUS_VALIDATED.",".Facture::STATUS_CLOSED.")";
+        $sql .= " ORDER BY f.datef ASC, f.ref ASC";
+ 
+        $result = $db->query($sql);
+        if (!$result) {
+            throw new RestException(500, 'DB error: ' . $db->lasterror());
+        }
+ 
+        // CSV header — same columns as the reference export
+        $csvColumns = [
+            'Type', 'Environnement', 'Date', 'Date échéance', 'Réf.',
+            'Total HT', 'Total TTC', 'Total TVA',
+            'Total Taxe 2', 'Total Taxe 3', 'Timbre fiscal',
+            'Payé', 'Document', 'ItemID', 'Tiers', 'Code',
+            'Pays', 'Numéro de TVA', 'Sens'
+        ];
+ 
+        $csvLines   = [];
+        $csvLines[] = implode(',', array_map(fn($c) => '"' . str_replace('"', '""', $c) . '"', $csvColumns));
+        $invoiceRefs = [];
+ 
+        while ($obj = $db->fetch_object($result)) {
+            $date    = dol_print_date($db->jdate($obj->datef),                '%Y-%m-%d');
+            $dateEch = dol_print_date($db->jdate($obj->date_lim_reglement),   '%Y-%m-%d');
+ 
+            $invoiceRefs[$obj->ref] = true;
+ 
+            $row = [
+                'Facture',
+                $entityLabel,
+                $date,
+                $dateEch,
+                $obj->ref,
+                number_format((float)$obj->total_ht,  8, '.', ''),
+                number_format((float)$obj->total_ttc, 8, '.', ''),
+                number_format((float)$obj->total_tva, 8, '.', ''),
+                number_format(0,  8, '.', ''),
+                number_format(0,  8, '.', ''),
+                number_format(0,  8, '.', ''),
+                $obj->paye ? '1' : '0',
+                $obj->ref . '.pdf',
+                $obj->rowid,
+                $obj->tiers   ?? '',
+                $obj->code    ?? '',
+                $obj->pays    ?? '',
+                $obj->tva_intra ?? '',
+                '1'
+            ];
+ 
+            $csvLines[] = implode(',', array_map(fn($v) => '"' . str_replace('"', '""', (string)$v) . '"', $row));
+        }
+ 
+        $csvContent = implode("\n", $csvLines);
+ 
+        // Build ZIP
+        $zipFile = tempnam(sys_get_temp_dir(), 'cowork_export_') . '.zip';
+        $zip     = new ZipArchive();
+        if ($zip->open($zipFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new RestException(500, 'Cannot create ZIP archive');
+        }
+ 
+        $zip->addFromString('transactions.csv', $csvContent);
+ 
+        $invoiceDir = $conf->facture->multidir_output[$conf->entity] ?? '';
+        foreach ($invoiceRefs as $ref => $_) {
+            $pdfPath   = $invoiceDir . '/' . $ref . '/' . $ref . '.pdf';
+            $pdfPathOS = dol_osencode($pdfPath);
+            if (file_exists($pdfPathOS)) {
+                $zip->addFile($pdfPathOS, 'invoices/' . $ref . '.pdf');
+            }
+        }
+ 
+        $zip->close();
+ 
+        $zipContent = file_get_contents($zipFile);
+        unlink($zipFile);
+ 
+        $exportName = preg_replace('/[^a-zA-Z0-9_\-.]/', '_',
+            'export_' . $entityLabel . '_' . $dateStart . '_' . $dateEnd . '.zip');
+ 
+        return [
+            'filename'     => $exportName,
+            'content-type' => 'application/zip',
+            'filesize'     => strlen($zipContent),
+            'content'      => base64_encode($zipContent),
+            'encoding'     => 'base64'
+        ];
+    }
+
     
     /**
      * @return string
