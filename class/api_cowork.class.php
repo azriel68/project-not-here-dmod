@@ -180,6 +180,12 @@ class Cowork extends DolibarrApi
             if (file_exists($pdfPathOS)) {
                 $zip->addFile($pdfPathOS, 'invoices/' . $ref . '.pdf');
             }
+            
+            $xmlPath   = $invoiceDir . '/' . $ref . '/' . $ref . '_cii.xml';
+            $xmlPathOS = dol_osencode($pdfPath);
+            if (file_exists($pdfPathOS)) {
+                $zip->addFile($pdfPathOS, 'e-invoices/' . $ref . '_cii.xml');
+            }            
         }
  
         $zip->close();

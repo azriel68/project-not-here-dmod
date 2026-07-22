@@ -24,6 +24,10 @@ class ThirdpartyService extends CoreService {
 		$societe->zip = $data['zip'];
 		$societe->phone = $data['phone'];
 		$societe->email = $data['email'];
+                $societe->idprof1 = $data['company_siren'];
+                $societe->tva_intra = $data['company_vat_code'];
+                $societe->typent_id = dol_getIdFromCode($this->db, empty($data['company']) ? 'TE_PRIVATE' : 'TE_MEDIUM', 'c_typent', 'code', 'id');
+                $societe->country_id = dol_getIdFromCode($this->db, empty($data['company_country_code']) ? 'FRA' : $data['company_country_code'], 'c_country', 'code_iso', 'rowid');
 		$societe->entity = $entity;
 
 		if ($societe->id > 0) {
