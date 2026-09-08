@@ -29,6 +29,7 @@ class ThirdpartyService extends CoreService {
                 $societe->typent_id = dol_getIdFromCode($this->db, empty($data['company']) ? 'TE_PRIVATE' : 'TE_MEDIUM', 'c_typent', 'code', 'id');
                 $societe->country_id = dol_getIdFromCode($this->db, empty($data['company_country_code']) ? 'FRA' : $data['company_country_code'], 'c_country', 'code_iso', 'rowid');
 		$societe->entity = $entity;
+                $societe->tva_assuj = !empty($data['company_vat_code']) && !empty($data['company']) ? 1 : 0;
 
 		if ($societe->id > 0) {
 			$res = $societe->update($societe->id, $this->user);
