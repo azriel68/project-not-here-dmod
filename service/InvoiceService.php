@@ -74,10 +74,24 @@ class InvoiceService extends CoreService {
 
         $invoice = new \Facture($this->db);
 
-        $invoice->fetch(0, '', $data['ref_ext']); //for obscur reason (and surely a middle bug, the invoice already exist)
+        // The invoice may already exist when a previous cron run failed between create() and validate()
+        // (e.g. exception in addLines): it is then a draft, possibly without any line. Finish the job.
+        $invoice->fetch(0, '', $data['ref_ext']);
         if ($invoice->id > 0) {
-            $invoice->validate($this->user);
-            
+            if ((int) $invoice->status === \Facture::STATUS_DRAFT) {
+                $invoice->fetch_lines();
+                if (empty($invoice->lines)) {
+                    $this->addLines($invoice, $data['lines']);
+                    $invoice->fetch($invoice->id);
+                }
+
+                if ($validate && $invoice->validate($this->user) < 0) {
+                    throw new \Exception('Invoice Validatation::'.$invoice->error);
+                }
+
+                $invoice->fetch_thirdparty();
+            }
+
             return $invoice;
         }
 
