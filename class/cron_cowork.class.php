@@ -140,8 +140,8 @@ class CronCowork {
                 var_dump('createSpotBills::Exception', $wallet->id, $wallet->place->id, $exception);
                 $this->errors[] = 'Exception ' . $wallet->id . ' ' . $wallet->place->id . ' ' . $exception->getMessage();
                 $this->output .= 'Exception ' . $wallet->id;
-                
-                return 0;
+
+                continue; // do not block the other wallets, retried on next run
             }
         }
 
@@ -149,7 +149,8 @@ class CronCowork {
             $apiCoworkService->setDraftInvoiceRef($data[0], $data[1], $data[2], $data[3]);
         }
         
-        return 0;
+        // non-zero result so the cron job is flagged in error (and alert e-mail sent)
+        return empty($this->errors) ? 0 : -1;
         
     }
     
@@ -211,8 +212,8 @@ class CronCowork {
                 var_dump('createSpotBills::Exception', $wallet->id, $wallet->place->id, $exception);
                 $this->errors[] = 'Exception ' . $wallet->id . ' ' . $wallet->place->id . ' ' . $exception->getMessage();
                 $this->output .= 'Exception ' . $wallet->id;
-                
-                return 0;
+
+                continue; // do not block the other wallets, retried on next run
             }
         }
 
@@ -220,7 +221,8 @@ class CronCowork {
           $apiCoworkService->setInvoiceRef($data[0], $data[1], $data[2], $data[3]);
         }
         
-        return 0;
+        // non-zero result so the cron job is flagged in error (and alert e-mail sent)
+        return empty($this->errors) ? 0 : -1;
     }
 
     public function createCreditNotes(): int {
@@ -274,8 +276,8 @@ class CronCowork {
                 var_dump('createCreditNotes::Exception', $wallet->id, $wallet->place->id, $exception);
                 $this->errors[] = 'Exception ' . $wallet->id . ' ' . $wallet->place->id . ' ' . $exception->getMessage();
                 $this->output .= 'Exception ' . $wallet->id;
-                
-                return 0;
+
+                continue; // do not block the other wallets, retried on next run
             }
         }
 
@@ -283,7 +285,8 @@ class CronCowork {
             $apiCoworkService->setCreditNoteRef($data[0], $data[1], $data[2], $data[3]);
         }
         
-        return 0;
+        // non-zero result so the cron job is flagged in error (and alert e-mail sent)
+        return empty($this->errors) ? 0 : -1;
     }
     
     private function initEntities(): void {
