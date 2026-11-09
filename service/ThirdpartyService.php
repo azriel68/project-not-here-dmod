@@ -17,10 +17,10 @@ class ThirdpartyService extends CoreService {
 
 		$societe->fetch(0, '', '', '', '','', '', '', '','',$data['email']);
 		$societe->ref_ext = $data['ref_ext'];
-		$societe->name = $data['name'];
+		$societe->name = self::toUtf8mb3($data['name']);
 		$societe->client = 1;
-		$societe->address = $data['address'];
-		$societe->town = $data['city'];
+		$societe->address = self::toUtf8mb3($data['address']);
+		$societe->town = self::toUtf8mb3($data['city']);
 		$societe->zip = $data['zip'];
 		$societe->phone = $data['phone'];
 		$societe->email = $data['email'];
