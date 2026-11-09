@@ -126,7 +126,7 @@ class InvoiceService extends CoreService {
     private function addLines(\Facture $invoice, array $lines): void {
         foreach($lines as $line) {
             $res = $invoice->addline(
-                $line['description'],
+                self::toUtf8mb3($line['description']),
                 $line['subprice'],
                 $line['quantity'] ?? 1,
                 $line['tvatx'],
