@@ -104,7 +104,7 @@ class Cowork extends DolibarrApi
         // Fetch invoices for the period
         $sql  = "SELECT f.rowid, f.ref, f.datef, f.date_lim_reglement,";
         $sql .= " f.total_ht, f.total_ttc, f.total_tva, f.paye,";
-        $sql .= " s.nom AS tiers, s.code_client AS code, c.code AS pays, s.tva_intra";
+        $sql .= " s.nom AS tiers, s.name_alias, s.email, s.code_client AS code, c.code AS pays, s.tva_intra";
         $sql .= " FROM "   . MAIN_DB_PREFIX . "facture f";
         $sql .= " LEFT JOIN " . MAIN_DB_PREFIX . "societe s ON s.rowid = f.fk_soc";
         $sql .= " LEFT JOIN " . MAIN_DB_PREFIX . "c_country c ON c.rowid = s.fk_pays";
@@ -124,7 +124,9 @@ class Cowork extends DolibarrApi
             'Total HT', 'Total TTC', 'Total TVA',
             'Total Taxe 2', 'Total Taxe 3', 'Timbre fiscal',
             'Payé', 'Document', 'ItemID', 'Tiers', 'Code',
-            'Pays', 'Numéro de TVA', 'Sens'
+            'Pays', 'Numéro de TVA', 'Sens',
+            'Occupant', 'Objet', 'Début période', 'Fin période',
+            'Mode de paiement', 'Date de paiement'
         ];
  
         $csvLines   = [];
@@ -136,7 +138,10 @@ class Cowork extends DolibarrApi
             $dateEch = dol_print_date($db->jdate($obj->date_lim_reglement),   '%Y-%m-%d');
  
             $invoiceRefs[$obj->ref] = true;
- 
+
+            $lines    = $this->getInvoiceLinesSummary((int)$obj->rowid);
+            $payments = $this->getInvoicePaymentsSummary((int)$obj->rowid);
+
             $row = [
                 'Facture',
                 $entityLabel,
@@ -156,7 +161,14 @@ class Cowork extends DolibarrApi
                 $obj->code    ?? '',
                 $obj->pays    ?? '',
                 $obj->tva_intra ?? '',
-                '1'
+                '1',
+                // Occupant: the person (name_alias), else the account email
+                trim((string)$obj->name_alias) !== '' ? $obj->name_alias : ($obj->email ?? ''),
+                $lines['object'],
+                $lines['date_start'],
+                $lines['date_end'],
+                $payments['modes'],
+                $payments['dates'],
             ];
  
             $csvLines[] = implode(',', array_map(fn($v) => '"' . str_replace('"', '""', (string)$v) . '"', $row));
@@ -205,7 +217,91 @@ class Cowork extends DolibarrApi
         ];
     }
 
-    
+    /**
+     * Invoice object (line labels without HTML, distinct, " | " separated) and the
+     * period covered by its lines (earliest start, latest end).
+     *
+     * @return array{object: string, date_start: string, date_end: string}
+     */
+    private function getInvoiceLinesSummary(int $invoiceId): array
+    {
+        global $db;
+
+        $sql = "SELECT fd.description, fd.date_start, fd.date_end"
+             . " FROM " . MAIN_DB_PREFIX . "facturedet fd"
+             . " WHERE fd.fk_facture = " . $invoiceId
+             . " ORDER BY fd.rang ASC, fd.rowid ASC";
+        $res = $db->query($sql);
+
+        $labels = [];
+        $start  = null;
+        $end    = null;
+        while ($res && ($line = $db->fetch_object($res))) {
+            $text  = str_ireplace(['<br />', '<br/>', '<br>'], ', ', (string)$line->description);
+            $label = trim(preg_replace('/\s+/', ' ', dol_string_nohtmltag($text)));
+            if ($label !== '') {
+                $labels[$label] = true;
+            }
+
+            $lineStart = $db->jdate($line->date_start);
+            $lineEnd   = $db->jdate($line->date_end);
+            if (!empty($lineStart) && (null === $start || $lineStart < $start)) {
+                $start = $lineStart;
+            }
+            if (!empty($lineEnd) && (null === $end || $lineEnd > $end)) {
+                $end = $lineEnd;
+            }
+        }
+
+        return [
+            'object'     => implode(' | ', array_keys($labels)),
+            'date_start' => null === $start ? '' : dol_print_date($start, '%Y-%m-%d'),
+            'date_end'   => null === $end ? '' : dol_print_date($end, '%Y-%m-%d'),
+        ];
+    }
+
+    /**
+     * Payment modes (Dolibarr payment types, e.g. "Carte bancaire", "Virement") and
+     * payment dates of an invoice; several payments are " | " separated.
+     *
+     * @return array{modes: string, dates: string}
+     */
+    private function getInvoicePaymentsSummary(int $invoiceId): array
+    {
+        global $db, $conf;
+
+        // Payment type labels in French (the export is read by the place's accounting)
+        static $frLangs = null;
+        if (null === $frLangs) {
+            $frLangs = new Translate('', $conf);
+            $frLangs->setDefaultLang('fr_FR');
+            $frLangs->loadLangs(['main', 'bills']);
+        }
+
+        $sql = "SELECT p.datep, cp.code, cp.libelle"
+             . " FROM " . MAIN_DB_PREFIX . "paiement_facture pf"
+             . " INNER JOIN " . MAIN_DB_PREFIX . "paiement p ON p.rowid = pf.fk_paiement"
+             . " LEFT JOIN " . MAIN_DB_PREFIX . "c_paiement cp ON cp.id = p.fk_paiement"
+             . " WHERE pf.fk_facture = " . $invoiceId
+             . " ORDER BY p.datep ASC";
+        $res = $db->query($sql);
+
+        $modes = [];
+        $dates = [];
+        while ($res && ($payment = $db->fetch_object($res))) {
+            $key     = 'PaymentType' . $payment->code;
+            $label   = $frLangs->transnoentitiesnoconv($key);
+            $modes[] = $label !== $key ? $label : ($payment->libelle ?: (string)$payment->code);
+            $dates[] = dol_print_date($db->jdate($payment->datep), '%Y-%m-%d');
+        }
+
+        return [
+            'modes' => implode(' | ', array_unique($modes)),
+            'dates' => implode(' | ', array_unique($dates)),
+        ];
+    }
+
+
     /**
      * @return string
      *
