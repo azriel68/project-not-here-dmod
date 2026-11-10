@@ -2,6 +2,8 @@
 
 namespace Dolibarr\Cowork;
 
+require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
+
 dol_include_once('/cowork/service/CoreService.php');
 
 use Dolibarr\Core\CoreService;
@@ -43,6 +45,53 @@ class ThirdpartyService extends CoreService {
 		}
 
 		return $societe;
+	}
+
+	/**
+	 * Contact of the person behind the account when the thirdparty is a company
+	 * (several people can share a company): looked up in the thirdparty contacts
+	 * by first name and last name, created when missing.
+	 *
+	 * @return int Contact id, 0 when not a company or no name given
+	 * @throws \Exception
+	 */
+	public function findOrCreateContact(\Societe $societe, array $data, $entity): int {
+
+		$company   = trim((string)($data['company'] ?? ''));
+		$firstname = trim((string)($data['firstname'] ?? ''));
+		$lastname  = trim((string)($data['lastname'] ?? ''));
+
+		if ($company === '' || ($firstname === '' && $lastname === '')) {
+			return 0;
+		}
+
+		$sql = "SELECT sp.rowid FROM ".MAIN_DB_PREFIX."socpeople sp"
+			." WHERE sp.fk_soc = ".((int)$societe->id)
+			." AND LOWER(TRIM(COALESCE(sp.lastname, ''))) = '".$this->db->escape(dol_strtolower($lastname))."'"
+			." AND LOWER(TRIM(COALESCE(sp.firstname, ''))) = '".$this->db->escape(dol_strtolower($firstname))."'"
+			." ORDER BY sp.rowid ASC";
+		$res = $this->db->query($sql);
+		if (!$res) {
+			throw new \Exception('Contact::'.$this->db->lasterror());
+		}
+		if ($obj = $this->db->fetch_object($res)) {
+			return (int)$obj->rowid;
+		}
+
+		$contact = new \Contact($this->db);
+		$contact->socid     = $societe->id;
+		$contact->entity    = $entity;
+		$contact->firstname = $firstname;
+		$contact->lastname  = $lastname;
+		$contact->email     = $data['email'] ?? '';
+		$contact->phone_pro = $data['phone'] ?? '';
+		$contact->statut    = 1;
+
+		if ($contact->create($this->user) < 0) {
+			throw new \Exception('Contact::'.$contact->error);
+		}
+
+		return (int)$contact->id;
 	}
 
 }

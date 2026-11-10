@@ -43,12 +43,16 @@ class InvoiceService extends CoreService {
 
         $thirdpartyService = ThirdpartyService::make($this->db, $this->user);
 
-        $invoice->socid = ($thirdpartyService->updateOrcreate($data['thirdparty'], $invoice->entity))->id;
+        $societe = $thirdpartyService->updateOrcreate($data['thirdparty'], $invoice->entity);
+        $invoice->socid = $societe->id;
+        $contactId = $thirdpartyService->findOrCreateContact($societe, $data['thirdparty'], $invoice->entity);
 
         if ($invoice->create($this->user)<0) {
             throw new \Exception($invoice->error);
         }
-        
+
+        $this->addBillingContact($invoice, $contactId);
+
         $invoice->addline('Avoir sur la facture '.$originInvoice->ref, -$data['refund_amount'], 1, 0, 0, 0, 0, 0, '', '', 'TTC');
         
         
@@ -90,11 +94,15 @@ class InvoiceService extends CoreService {
 
         $thirdpartyService = ThirdpartyService::make($this->db, $this->user);
 
-        $invoice->socid = ($thirdpartyService->updateOrcreate($data['thirdparty'], $invoice->entity))->id;
+        $societe = $thirdpartyService->updateOrcreate($data['thirdparty'], $invoice->entity);
+        $invoice->socid = $societe->id;
+        $contactId = $thirdpartyService->findOrCreateContact($societe, $data['thirdparty'], $invoice->entity);
 
         if ($invoice->create($this->user)<0) {
             throw new \Exception($invoice->error);
         }
+
+        $this->addBillingContact($invoice, $contactId);
 
         $this->addLines($invoice, $data['lines']);
 
@@ -107,6 +115,19 @@ class InvoiceService extends CoreService {
         }
 
         return $invoice;
+    }
+
+    /**
+     * The person behind a company account is the billing contact of the invoice.
+     */
+    private function addBillingContact(\Facture $invoice, int $contactId): void {
+        if ($contactId <= 0) {
+            return;
+        }
+
+        if ($invoice->add_contact($contactId, 'BILLING', 'external') < 0) {
+            throw new \Exception('Invoice BillingContact::'.$invoice->error);
+        }
     }
 
     private function addLines(\Facture $invoice, array $lines): void {
