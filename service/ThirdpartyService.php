@@ -24,6 +24,8 @@ class ThirdpartyService extends CoreService {
 		$societe->zip = $data['zip'];
 		$societe->phone = $data['phone'];
 		$societe->email = $data['email'];
+		// Occupant: the person behind the account (several people can share a company name)
+		$societe->name_alias = trim(($data['firstname'] ?? '') . ' ' . ($data['lastname'] ?? ''));
                 $societe->idprof1 = $data['company_siren'];
                 $societe->tva_intra = $data['company_vat_code'];
                 $societe->typent_id = dol_getIdFromCode($this->db, empty($data['company']) ? 'TE_PRIVATE' : 'TE_MEDIUM', 'c_typent', 'code', 'id');
