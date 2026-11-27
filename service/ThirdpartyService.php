@@ -85,7 +85,7 @@ class ThirdpartyService extends CoreService {
 
 		$sql = "SELECT s.rowid FROM ".MAIN_DB_PREFIX."societe s"
 			." WHERE s.entity = ".((int)$entity)
-			." AND s.idprof1 = '".$this->db->escape($idprof1)."'"
+			." AND s.siren = '".$this->db->escape($idprof1)."'"
 			." AND s.fk_pays = ".((int)$countryId)
 			." ORDER BY s.rowid ASC"
 			.$this->db->plimit(1);
