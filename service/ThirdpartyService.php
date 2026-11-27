@@ -12,10 +12,14 @@ class ThirdpartyService extends CoreService {
 
 	/**
 	 * Thirdparty of the account, looked up in this order:
-	 * - company with a valid SIREN: the thirdparty of the entity with this SIREN
+	 * - company with a company id (idprof1: SIREN in France, another format elsewhere):
+	 *   the thirdparty of the entity with this exact id and country
 	 *   (several people of a company share one thirdparty, each one is a contact of it)
 	 * - else the thirdparty with the account email
 	 * - else a new thirdparty
+	 *
+	 * The company id is compared as stored, without normalization: its format depends
+	 * on the country and it is to be cleaned when the user saves it.
 	 *
 	 * @throws \Exception
 	 */
@@ -23,11 +27,14 @@ class ThirdpartyService extends CoreService {
 
 		$societe = new \Societe($this->db);
 
-		$siren = empty(trim((string)($data['company'] ?? ''))) ? '' : self::normalizeSiren($data['company_siren'] ?? '');
+		$countryId = dol_getIdFromCode($this->db, empty($data['company_country_code']) ? 'FRA' : $data['company_country_code'], 'c_country', 'code_iso', 'rowid');
+		$idprof1   = trim((string)($data['company_siren'] ?? ''));
 
-		$socidBySiren = $siren !== '' ? $this->findIdBySiren($siren, $entity) : 0;
-		if ($socidBySiren > 0) {
-			if ($societe->fetch($socidBySiren) <= 0) {
+		$socidByIdprof1 = (!empty(trim((string)($data['company'] ?? ''))) && $idprof1 !== '')
+			? $this->findIdByIdprof1($idprof1, $countryId, $entity)
+			: 0;
+		if ($socidByIdprof1 > 0) {
+			if ($societe->fetch($socidByIdprof1) <= 0) {
 				throw new \Exception('Thirdparty::'.$societe->error);
 			}
 		}
@@ -36,7 +43,7 @@ class ThirdpartyService extends CoreService {
 		}
 
 		// Shared company thirdparty: keep its own email, phone and ref_ext (the person is a contact of it)
-		if ($socidBySiren <= 0) {
+		if ($socidByIdprof1 <= 0) {
 			$societe->ref_ext = $data['ref_ext'];
 			$societe->phone = $data['phone'];
 			$societe->email = $data['email'];
@@ -47,10 +54,10 @@ class ThirdpartyService extends CoreService {
 		$societe->address = self::toUtf8mb3($data['address']);
 		$societe->town = self::toUtf8mb3($data['city']);
 		$societe->zip = $data['zip'];
-                $societe->idprof1 = $siren !== '' ? $siren : $data['company_siren'];
+                $societe->idprof1 = $idprof1;
                 $societe->tva_intra = $data['company_vat_code'];
                 $societe->typent_id = dol_getIdFromCode($this->db, empty($data['company']) ? 'TE_PRIVATE' : 'TE_MEDIUM', 'c_typent', 'code', 'id');
-                $societe->country_id = dol_getIdFromCode($this->db, empty($data['company_country_code']) ? 'FRA' : $data['company_country_code'], 'c_country', 'code_iso', 'rowid');
+                $societe->country_id = $countryId;
 		$societe->entity = $entity;
                 $societe->tva_assuj = !empty($data['company_vat_code']) && !empty($data['company']) ? 1 : 0;
 
@@ -69,61 +76,27 @@ class ThirdpartyService extends CoreService {
 	}
 
 	/**
-	 * SIREN (9 digits, Luhn key checked) from a user input that may be a SIREN or
-	 * a SIRET, with spaces, dots...
-	 *
-	 * @return string SIREN, '' when the input is not a valid SIREN or SIRET
-	 */
-	public static function normalizeSiren(?string $value): string {
-
-		$digits = preg_replace('/\D/', '', (string)$value);
-		if (strlen($digits) !== 9 && strlen($digits) !== 14) {
-			return '';
-		}
-
-		$siren = substr($digits, 0, 9);
-
-		$sum = 0;
-		for ($i = 0; $i < 9; $i++) {
-			$digit = (int)$siren[$i];
-			if ($i % 2 === 1) { // every second digit from the right of 9 digits
-				$digit *= 2;
-				if ($digit > 9) {
-					$digit -= 9;
-				}
-			}
-			$sum += $digit;
-		}
-
-		return $sum % 10 === 0 ? $siren : '';
-	}
-
-	/**
-	 * Oldest thirdparty of the entity whose SIREN (idprof1, may be stored as a SIRET
-	 * or with spaces) is the given one.
+	 * Oldest thirdparty of the entity with this company id (idprof1) and country.
 	 *
 	 * @return int Thirdparty id, 0 when none
 	 * @throws \Exception
 	 */
-	private function findIdBySiren(string $siren, $entity): int {
+	private function findIdByIdprof1(string $idprof1, $countryId, $entity): int {
 
-		$sql = "SELECT s.rowid, s.idprof1 FROM ".MAIN_DB_PREFIX."societe s"
+		$sql = "SELECT s.rowid FROM ".MAIN_DB_PREFIX."societe s"
 			." WHERE s.entity = ".((int)$entity)
-			." AND s.idprof1 IS NOT NULL AND s.idprof1 <> ''"
-			." ORDER BY s.rowid ASC";
+			." AND s.idprof1 = '".$this->db->escape($idprof1)."'"
+			." AND s.fk_pays = ".((int)$countryId)
+			." ORDER BY s.rowid ASC"
+			.$this->db->plimit(1);
 		$res = $this->db->query($sql);
 		if (!$res) {
 			throw new \Exception('Thirdparty::'.$this->db->lasterror());
 		}
 
-		// Compare normalized values: the stored SIREN comes from a free user input
-		while ($obj = $this->db->fetch_object($res)) {
-			if (self::normalizeSiren($obj->idprof1) === $siren) {
-				return (int)$obj->rowid;
-			}
-		}
+		$obj = $this->db->fetch_object($res);
 
-		return 0;
+		return $obj ? (int)$obj->rowid : 0;
 	}
 
 	/**
